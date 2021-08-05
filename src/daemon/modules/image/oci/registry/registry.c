@@ -1203,7 +1203,7 @@ static void *fetch_layer_in_thread(void *arg)
         ret = -1;
         goto out;
     }
-    desc->layer[info->index] = DOWNLOAD_COMPLETED;
+    desc->layers[info->index].status = DOWNLOAD_COMPLETED;
     // calc diffid only if it's schema v1. schema v1 have
     // no diff id so we need to calc it. schema v2 have
     // diff id in config and we do not want to calc it again
@@ -1276,7 +1276,7 @@ static int add_fetch_task(thread_fetch_info *info)
     cached_layers_added = true;
 
     if (cache == NULL) {
-        info->desc.layers[info->index].status = DOWNLOADING;
+        info->desc->layers[info->index].status = DOWNLOADING;
         ret = pthread_create(&tid, NULL, fetch_layer_in_thread, info);
         if (ret != 0) {
             ERROR("failed to start thread fetch layer %zu", info->index);
@@ -1284,7 +1284,7 @@ static int add_fetch_task(thread_fetch_info *info)
         }
         info->desc->pulling_number++;
     }
-    else info->desc.layers[info->index].status = PULL_COMPLETED;
+    else info->desc->layers[info->index].status = PULL_COMPLETED;
 
 out:
     if (ret != 0 && cached_layers_added) {
@@ -1496,8 +1496,8 @@ static int add_fetch_config_task(pull_descriptor *desc)
 
 void show_progress_bar(pull_descriptor *desc){
     layer_blob *layer;
-    int progress;
-    const int bar_length = 30;
+    //int progress;
+    //const int bar_length = 30;
     size_t total_size, process_now;
     float total_size_MB, process_now_MB;
     
@@ -1513,7 +1513,7 @@ void show_progress_bar(pull_descriptor *desc){
             process_now = layer->dlnow;
             total_size_MB = 1.0f*total_size/1024.0f/1024.0f;
             process_now_MB = 1.0f*process_now/1024.0f/1024.0f;
-            progress = process_now*bar_length/total_size;
+            //progress = process_now*bar_length/total_size;
             /********************************
             putchar('[');
             for(int j = 1; j <= BAR_LENGTH; j++){
@@ -1670,7 +1670,7 @@ static int fetch_all(pull_descriptor *desc)
         }
         else {
             show_progress_bar(desc);
-            if(!all_fetch_complete(desc, infos, &result))printf("\033[%dF", desc->layers_len);
+            if(!all_fetch_complete(desc, infos, &result))printf("\033[%ldF", desc->layers_len);
         }
     }
 
