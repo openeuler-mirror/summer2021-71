@@ -21,6 +21,7 @@
 
 using namespace images;
 
+using grpc::ClientReader;
 using grpc::ClientContext;
 using grpc::Status;
 
@@ -337,8 +338,8 @@ public:
 };
 
 class ImagesPull : public
-    ClientBase<runtime::v1alpha2::ImageService, runtime::v1alpha2::ImageService::Stub, isula_pull_request,
-    runtime::v1alpha2::PullImageRequest, isula_pull_response, runtime::v1alpha2::PullImageResponse> {
+    ClientBase<ImagesService, ImagesService::Stub, isula_pull_request,
+    PullImageRequest, isula_pull_response, PullImageProgress> {
 public:
     explicit ImagesPull(void *args)
         : ClientBase(args)
@@ -346,14 +347,14 @@ public:
     }
     ~ImagesPull() = default;
 
-    auto request_to_grpc(const isula_pull_request *request, runtime::v1alpha2::PullImageRequest *grequest) -> int override
+    auto request_to_grpc(const isula_pull_request *request, PullImageRequest *grequest) -> int override
     {
         if (request == nullptr) {
             return -1;
         }
 
         if (request->image_name != nullptr) {
-            runtime::v1alpha2::ImageSpec *image_spec = new (std::nothrow) runtime::v1alpha2::ImageSpec;
+            ImageSpec *image_spec = new (std::nothrow) ImageSpec;
             if (image_spec == nullptr) {
                 return -1;
             }
@@ -364,16 +365,15 @@ public:
         return 0;
     }
 
-    auto response_from_grpc(runtime::v1alpha2::PullImageResponse *gresponse, isula_pull_response *response) -> int override
+    auto response_from_grpc(PullImageProgress *gresponse, isula_pull_response *response) -> int override
     {
         if (!gresponse->image_ref().empty()) {
             response->image_ref = util_strdup_s(gresponse->image_ref().c_str());
         }
-
         return 0;
     }
 
-    auto check_parameter(const runtime::v1alpha2::PullImageRequest &req) -> int override
+    auto check_parameter(const PullImageRequest &req) -> int override
     {
         if (req.image().image().empty()) {
             ERROR("Missing image name in the request");
@@ -383,10 +383,137 @@ public:
         return 0;
     }
 
-    auto grpc_call(ClientContext *context, const runtime::v1alpha2::PullImageRequest &req,
-                   runtime::v1alpha2::PullImageResponse *reply) -> Status override
+    void show_progress_bar(const isula_pull_progress &progress)
     {
-        return stub_->PullImage(context, req, reply);
+        //int progress;
+        //const int bar_length = 30;
+        static int progress_times = 0;
+        size_t total_size, process_now;
+        float total_size_MB, process_now_MB;
+
+        if (progress_times != 0) {
+            printf("\033[%dF", progress.layers_number);
+        }
+
+        for (int i = 0; i < progress.layers_number; i++) {
+            printf("\r%s: ", progress.layer_digest[i]);
+            if (progress.layer_status[i] == WAITING) {
+                printf("Waiting");
+            } else if (progress.layer_status[i] == DOWNLOADING) {
+                printf("Downloading ");
+                total_size = progress.layer_size[i];
+                process_now = progress.dlnow[i];
+                total_size_MB = 1.0f * total_size / 1024.0f / 1024.0f;
+                process_now_MB = 1.0f * process_now / 1024.0f / 1024.0f;
+                //progress = process_now*bar_length/total_size;
+                /********************************
+                putchar('[');
+                for(int j = 1; j <= BAR_LENGTH; j++){
+                    if(j<progress)putchar('=');
+                    else if(j==progress)putchar('>');
+                    else putchar(' ');
+                }
+                putchar(']');
+                **********************************/
+                printf(" %.2fMB/%.2fMB", process_now_MB, total_size_MB);
+            } else if (progress.layer_status[i] == DOWNLOAD_COMPLETED) {
+                printf("Download completed");
+                for (int j = 0; j < 20; j++) {
+                    putchar(' ');
+                }
+            } else if (progress.layer_status[i] == EXTRACTING) {
+                printf("Extracting");
+                for (int j = 0; j < 20; j++) {
+                    putchar(' ');
+                }
+            } else if (progress.layer_status[i] == PULL_COMPLETED) {
+                printf("Pull completed");
+                for (int j = 0; j < 20; j++) {
+                    putchar(' ');
+                }
+            }
+            putchar('\n');
+        }
+        progress_times ++;
+    }
+
+    // translate grpc_progress to isula_progress
+    void progress_from_grpc(struct isula_pull_progress &progress,
+                            PullImageProgress *gprogress)
+    {
+        if (!gprogress->image_ref().empty()) {
+            progress.image_ref = util_strdup_s(gprogress->image_ref().c_str());
+        } else {
+            progress.layers_number = gprogress->layers_number();
+            progress.layer_digest = (char**)malloc(progress.layers_number * sizeof(char*));
+            progress.layer_size = (size_t*)malloc(progress.layers_number * sizeof(size_t));
+            progress.dlnow = (size_t*)malloc(progress.layers_number * sizeof(size_t));
+            progress.layer_status = (enum ISULA_PULL_TASK_STATUS *)malloc(progress.layers_number * sizeof(
+                                                                              enum ISULA_PULL_TASK_STATUS));
+            for (int i = 0; i < gprogress->layers_number(); i++) {
+                const PullImageProgress::LayerInfo &layer = gprogress->layers(i);
+                progress.layer_digest[i] = util_short_digest(layer.digest().c_str());
+                progress.layer_size[i] = layer.size();
+                progress.dlnow[i] = layer.dlnow();
+                if (layer.status() == PullImageProgress::WAITING) {
+                    progress.layer_status[i] = WAITING;
+                } else if (layer.status() == PullImageProgress::DOWNLOADING) {
+                    progress.layer_status[i] = DOWNLOADING;
+                } else if (layer.status() == PullImageProgress::DOWNLOAD_COMPLETED) {
+                    progress.layer_status[i] = DOWNLOAD_COMPLETED;
+                } else if (layer.status() == PullImageProgress::EXTRACTING) {
+                    progress.layer_status[i] = EXTRACTING;
+                } else if (layer.status() == PullImageProgress::PULL_COMPLETED) {
+                    progress.layer_status[i] = PULL_COMPLETED;
+                } else if (layer.status() == PullImageProgress::CACHED) {
+                    progress.layer_status[i] = CACHED;
+                }
+            }
+        }
+    }
+
+    void free_progress_info(struct isula_pull_progress &progress)
+    {
+        if (progress.image_ref != NULL) {
+            free(progress.image_ref);
+            progress.image_ref = NULL;
+        }
+        if (progress.layer_size != NULL) {
+            free(progress.layer_size);
+            progress.layer_size = NULL;
+        }
+        if (progress.dlnow != NULL) {
+            free(progress.dlnow);
+            progress.dlnow = NULL;
+        }
+        if (progress.layer_digest != NULL) {
+            for (int i = 0; i < progress.layers_number; i++) {
+                if (progress.layer_digest[i] != NULL) {
+                    free(progress.layer_digest[i]);
+                    progress.layer_digest[i] = NULL;
+                }
+            }
+            free(progress.layer_digest);
+            progress.layer_digest = NULL;
+        }
+        progress.layers_number = 0;
+    }
+
+    auto grpc_call(ClientContext *context, const PullImageRequest &req,
+                   PullImageProgress *gprogress) -> Status override
+    {
+        std::unique_ptr<ClientReader<PullImageProgress>>
+                                                      reader(stub_->PullImage(context, req));
+        struct isula_pull_progress progress;
+        memset(&progress, 0, sizeof(struct isula_pull_progress));
+        while (reader->Read(gprogress)) {
+            // print progress bar
+            progress_from_grpc(progress, gprogress);
+            show_progress_bar(progress);
+            free_progress_info(progress);
+        }
+        Status status = reader->Finish();
+        return status;
     }
 };
 

@@ -34,6 +34,7 @@
 #include "utils.h"
 #include "ext_image.h"
 #include "filters.h"
+#include "stream_wrapper.h"
 
 struct bim_ops {
     int (*init)(const isulad_daemon_configs *args);
@@ -81,7 +82,7 @@ struct bim_ops {
     int (*load_image)(const im_load_request *request);
 
     /* pull image */
-    int (*pull_image)(const im_pull_request *request, im_pull_response *response);
+    int (*pull_image)(const im_pull_request *request, im_pull_response *response, stream_func_wrapper *stream);
 
     /* login */
     int (*login)(const im_login_request *request);
@@ -911,7 +912,7 @@ static bool check_im_pull_args(const im_pull_request *req, im_pull_response * co
     return true;
 }
 
-int im_pull_image(const im_pull_request *request, im_pull_response **response)
+int im_pull_image(const im_pull_request *request, im_pull_response **response, stream_func_wrapper *stream)
 {
     int ret = -1;
     struct bim *bim = NULL;
@@ -941,7 +942,7 @@ int im_pull_image(const im_pull_request *request, im_pull_response **response)
     }
 
     EVENT("Event: {Object: %s, Type: Pulling}", request->image);
-    ret = bim->ops->pull_image(request, tmp_res);
+    ret = bim->ops->pull_image(request, tmp_res, stream);
     if (ret != 0) {
         ERROR("Pull image %s failed", request->image);
         ret = -1;

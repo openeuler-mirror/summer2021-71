@@ -16,6 +16,7 @@
 #define DAEMON_MODULES_IMAGE_OCI_REGISTRY_REGISTRY_H
 
 #include <stdbool.h>
+#include "stream_wrapper.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,7 +43,7 @@ typedef struct {
 } registry_login_options;
 
 int registry_init(char *auths_path, char *certs_dir);
-int registry_pull(registry_pull_options *options);
+int registry_pull(registry_pull_options *options, stream_func_wrapper *stream);
 int registry_login(registry_login_options *options);
 int registry_logout(char *host);
 

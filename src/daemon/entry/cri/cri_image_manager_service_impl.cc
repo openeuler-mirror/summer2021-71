@@ -30,6 +30,7 @@
 #include "service_image_api.h"
 #include "utils.h"
 
+
 using namespace CRI;
 static void conv_image_to_grpc(const imagetool_image_summary *element, std::unique_ptr<runtime::v1alpha2::Image> &image)
 {
@@ -265,7 +266,7 @@ auto ImageManagerServiceImpl::PullImage(const runtime::v1alpha2::ImageSpec &imag
     }
     request->type = util_strdup_s(IMAGE_TYPE_OCI);
 
-    ret = im_pull_image(request, &response);
+    ret = im_pull_image(request, &response, NULL);
     if (ret != 0) {
         if (response != nullptr && response->errmsg != nullptr) {
             error.SetError(response->errmsg);

@@ -29,6 +29,7 @@
 #include "isula_libutils/imagetool_fs_info.h"
 #include "isula_libutils/imagetool_image_status.h"
 #include "isula_libutils/imagetool_image_summary.h"
+#include "stream_wrapper.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -281,7 +282,7 @@ void free_im_load_request(im_load_request *ptr);
 
 void free_im_load_response(im_load_response *ptr);
 
-int im_pull_image(const im_pull_request *request, im_pull_response **response);
+int im_pull_image(const im_pull_request *request, im_pull_response **response, stream_func_wrapper *stream);
 
 void free_im_pull_request(im_pull_request *req);
 

@@ -251,6 +251,148 @@ void ImagesServiceImpl::inspect_response_to_grpc(const image_inspect_response *r
     return;
 }
 
+static int progress_to_grpc(struct isulad_pull_format *progress,
+                            PullImageProgress *gprogress)
+{
+    if (progress->image_ref != nullptr) {
+        gprogress->set_image_ref(progress->image_ref);
+    } else {
+        gprogress->set_layers_number(progress->layers_number);
+        for (int i = 0; i < gprogress->layers_number(); i++) {
+            PullImageProgress::LayerInfo *layer = gprogress->add_layers();
+            layer->set_digest(progress->layer_digest[i]);
+            layer->set_size(progress->layer_size[i]);
+            layer->set_dlnow(progress->dlnow[i]);
+            if (progress->layer_status[i] == WAITING) {
+                layer->set_status(PullImageProgress::WAITING);
+            } else if (progress->layer_status[i] == DOWNLOADING) {
+                layer->set_status(PullImageProgress::DOWNLOADING);
+            } else if (progress->layer_status[i] == DOWNLOAD_COMPLETED) {
+                layer->set_status(PullImageProgress::DOWNLOAD_COMPLETED);
+            } else if (progress->layer_status[i] == EXTRACTING) {
+                layer->set_status(PullImageProgress::EXTRACTING);
+            } else if (progress->layer_status[i] == PULL_COMPLETED) {
+                layer->set_status(PullImageProgress::PULL_COMPLETED);
+            } else if (progress->layer_status[i] == CACHED) {
+                layer->set_status(PullImageProgress::CACHED);
+            }
+        }
+    }
+    return 0;
+}
+
+static bool grpc_progress_into_stream_write_function(void *writer, void *data)
+{
+    struct isulad_pull_format *progress = (struct isulad_pull_format *)data;
+    ServerWriter<PullImageProgress> *gwriter = (ServerWriter<PullImageProgress> *)writer;
+    PullImageProgress gprogress;
+    if (progress_to_grpc(progress, &gprogress) != 0) {
+        return false;
+    }
+    fprintf(stderr, "HERE SEND A MESSAGE");
+    return gwriter->Write(gprogress);
+}
+
+static int pull_request_from_grpc(const ImageSpec *image, const AuthConfig *auth, im_pull_request **request,
+                                  Errors &error)
+{
+    im_pull_request *tmpreq = (im_pull_request *)util_common_calloc_s(sizeof(im_pull_request));
+    if (tmpreq == nullptr) {
+        ERROR("Out of memory");
+        error.SetError("Out of memory");
+        return -1;
+    }
+
+    if (!image->image().empty()) {
+        tmpreq->image = util_strdup_s(image->image().c_str());
+    }
+
+    if (!auth->username().empty()) {
+        tmpreq->username = util_strdup_s(auth->username().c_str());
+    }
+
+    if (!auth->password().empty()) {
+        tmpreq->password = util_strdup_s(auth->password().c_str());
+    }
+
+    if (!auth->auth().empty()) {
+        tmpreq->auth = util_strdup_s(auth->auth().c_str());
+    }
+
+    if (!auth->server_address().empty()) {
+        tmpreq->server_address = util_strdup_s(auth->server_address().c_str());
+    }
+
+    if (!auth->identity_token().empty()) {
+        tmpreq->identity_token = util_strdup_s(auth->identity_token().c_str());
+    }
+
+    if (!auth->registry_token().empty()) {
+        tmpreq->registry_token = util_strdup_s(auth->registry_token().c_str());
+    }
+
+    *request = tmpreq;
+
+    return 0;
+}
+
+static auto DoPullImage(const ImageSpec &image, const AuthConfig &auth, Errors &error,
+                        stream_func_wrapper *stream) -> std::string
+{
+    std::string out_str;
+    im_pull_request *request { nullptr };
+    im_pull_response *response { nullptr };
+
+    int ret = pull_request_from_grpc(&image, &auth, &request, error);
+    if (ret != 0) {
+        goto cleanup;
+    }
+    request->type = util_strdup_s(IMAGE_TYPE_OCI);
+
+    ret = im_pull_image(request, &response, stream);
+    if (ret != 0) {
+        if (response != nullptr && response->errmsg != nullptr) {
+            error.SetError(response->errmsg);
+        } else {
+            error.SetError("Failed to call pull image");
+        }
+        goto cleanup;
+    }
+    if (response->image_ref != nullptr) {
+        out_str = response->image_ref;
+    }
+    (void)isulad_monitor_send_image_event(request->image, IM_PULL);
+
+cleanup:
+    DAEMON_CLEAR_ERRMSG();
+    free_im_pull_request(request);
+    free_im_pull_response(response);
+    return out_str;
+}
+
+Status ImagesServiceImpl::PullImage(ServerContext *context, const PullImageRequest *request,
+                                    ServerWriter<PullImageProgress> *writer)
+{
+    Errors error;
+
+    EVENT("Event: {Object: CRI, Type: Pulling image %s}", request->image().image().c_str());
+
+    //new stream wrapper
+    stream_func_wrapper stream = { 0 };
+    stream.writer = (void *)writer;
+    stream.write_func = &grpc_progress_into_stream_write_function;
+
+    std::string imageRef = DoPullImage(request->image(), request->auth(), error, &stream);
+    if (!error.Empty() || imageRef.empty()) {
+        ERROR("{Object: CRI, Type: Failed to pull image %s}", request->image().image().c_str());
+        return Status(StatusCode::UNKNOWN, error.GetMessage());
+    }
+
+    EVENT("Event: {Object: CRI, Type: Pulled image %s with ref %s}", request->image().image().c_str(),
+          imageRef.c_str());
+    return Status::OK;
+}
+
 Status ImagesServiceImpl::List(ServerContext *context, const ListImagesRequest *request, ListImagesResponse *reply)
 {
     auto status = GrpcServerTlsAuth::auth(context, "image_list");

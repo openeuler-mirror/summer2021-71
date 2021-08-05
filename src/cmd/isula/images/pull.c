@@ -64,7 +64,7 @@ int client_pull(const struct client_arguments *args)
         goto out;
     }
 
-    COMMAND_ERROR("Image \"%s\" pulled", response->image_ref);
+    COMMAND_ERROR("Image \"%s\" pulled\n", response->image_ref);
 
 out:
     isula_pull_response_free(response);

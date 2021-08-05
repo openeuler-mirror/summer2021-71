@@ -121,7 +121,7 @@ service ImageService {
     // nil.
     rpc ImageStatus(ImageStatusRequest) returns (ImageStatusResponse) {}
     // PullImage pulls an image with authentication config.
-    rpc PullImage(PullImageRequest) returns (PullImageResponse) {}
+    rpc PullImage(PullImageRequest) returns  (PullImageResponse) {}
     // RemoveImage removes the image.
     // This call is idempotent, and must not return an error if the image has
     // already been removed.
@@ -1116,6 +1116,7 @@ message PullImageRequest {
     // Config of the PodSandbox, which is used to pull image in PodSandbox context.
     PodSandboxConfig sandbox_config = 3;
 }
+
 
 message PullImageResponse {
     // Reference to the image in use. For most runtimes, this should be an

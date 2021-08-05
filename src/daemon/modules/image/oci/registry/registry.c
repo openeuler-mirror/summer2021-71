@@ -53,10 +53,13 @@
 #include "utils_timestamp.h"
 #include "utils_verify.h"
 #include "oci_image.h"
+#include "pull_format.h"
+#include "sys/time.h"
 
 #define MANIFEST_BIG_DATA_KEY "manifest"
 #define MAX_CONCURRENT_DOWNLOAD_NUM 5
 #define DEFAULT_WAIT_TIMEOUT 15
+#define DEFAULT_WAIT_TIMEOUT_MS 200
 
 typedef struct {
     pull_descriptor *desc;
@@ -1203,7 +1206,7 @@ static void *fetch_layer_in_thread(void *arg)
         ret = -1;
         goto out;
     }
-
+    desc->layers[info->index].status = DOWNLOAD_COMPLETED;
     // calc diffid only if it's schema v1. schema v1 have
     // no diff id so we need to calc it. schema v2 have
     // diff id in config and we do not want to calc it again
@@ -1216,7 +1219,6 @@ static void *fetch_layer_in_thread(void *arg)
             goto out;
         }
     }
-
 out:
     // notify to continue downloading
     mutex_lock(&g_shared->mutex);
@@ -1277,12 +1279,15 @@ static int add_fetch_task(thread_fetch_info *info)
     cached_layers_added = true;
 
     if (cache == NULL) {
+        info->desc->layers[info->index].status = DOWNLOADING;
         ret = pthread_create(&tid, NULL, fetch_layer_in_thread, info);
         if (ret != 0) {
             ERROR("failed to start thread fetch layer %zu", info->index);
             goto out;
         }
         info->desc->pulling_number++;
+    } else {
+        info->desc->layers[info->index].status = CACHED;
     }
 
 out:
@@ -1444,6 +1449,7 @@ static void *register_layers_in_thread(void *arg)
             goto out;
         }
 
+        desc->layers[i].status = EXTRACTING;
         // register layer
         ret = register_layer(desc, i);
         if (ret != 0) {
@@ -1451,6 +1457,7 @@ static void *register_layers_in_thread(void *arg)
             isulad_try_set_error_message("register layers failed");
             goto out;
         }
+        desc->layers[i].status = PULL_COMPLETED;
     }
 
 out:
@@ -1491,7 +1498,98 @@ static int add_fetch_config_task(pull_descriptor *desc)
     return 0;
 }
 
-static int fetch_all(pull_descriptor *desc)
+
+void free_isulad_pull_format(struct isulad_pull_format *data)
+{
+    if (data != NULL) {
+        if (data->layer_size != NULL) {
+            free(data->layer_size);
+        }
+        if (data->dlnow != NULL) {
+            free(data->dlnow);
+        }
+        if (data->layer_digest != NULL) {
+            free(data->layer_digest);
+        }
+        if (data->layer_status != NULL) {
+            free(data->layer_status);
+        }
+        free(data);
+    }
+}
+
+int prepare_isulad_pull_format(pull_descriptor *desc, struct isulad_pull_format *data)
+{
+    if (data == NULL) {
+        return -1;
+    }
+    memset(data, 0, sizeof(struct isulad_pull_format));
+    data->layers_number = desc->layers_len;
+    data->layer_size = (size_t*)malloc(data->layers_number * sizeof(size_t)); // util_common_calloc_s
+    if (data->layer_size == NULL) {
+        return -1;
+    }
+    data->dlnow = (size_t*)malloc(data->layers_number * sizeof(size_t)); // util_common_calloc_s
+    if (data->dlnow == NULL) {
+        return -1;
+    }
+    data->layer_digest = (char **)malloc(data->layers_number * sizeof(char *)); // util_common_calloc_s
+    if (data->layer_digest == NULL) {
+        return -1;
+    }
+    data->layer_status = (enum PULL_FORMAT_TASK_STATUS*)malloc(data->layers_number * sizeof(
+                                                                   enum PULL_FORMAT_TASK_STATUS)); // util_common_calloc_s
+    if (data->layer_status == NULL) {
+        return -1;
+    }
+    return 0;
+}
+
+
+int write_to_stream_func(pull_descriptor *desc, stream_func_wrapper *stream)
+{
+    if (stream == NULL || stream->write_func == NULL || stream->writer == NULL) {
+        return -1;
+    }
+
+    struct isulad_pull_format *data;
+    data = (struct isulad_pull_format*)malloc(sizeof(struct isulad_pull_format)); // util_common_calloc_s
+    if (data == NULL) {
+        ERROR("Out of memory");
+        return -1;
+    }
+    if (prepare_isulad_pull_format(desc, data) != 0) {
+        ERROR("isulad_pull_format preparation failed");
+        free_isulad_pull_format(data);
+        return -1;
+    }
+
+    for (int i = 0; i < desc->layers_len; i++) {
+        data->layer_size[i] = desc->layers[i].size;
+        data->dlnow[i] = desc->layers[i].dlnow;
+        data->layer_digest[i] = desc->layers[i].digest;
+        if (desc->layers[i].status == WAITING) {
+            data->layer_status[i] = WAITING;
+        } else if (desc->layers[i].status == DOWNLOADING) {
+            data->layer_status[i] = DOWNLOADING;
+        } else if (desc->layers[i].status == DOWNLOAD_COMPLETED) {
+            data->layer_status[i] = DOWNLOAD_COMPLETED;
+        } else if (desc->layers[i].status == EXTRACTING) {
+            data->layer_status[i] = EXTRACTING;
+        } else if (desc->layers[i].status == PULL_COMPLETED) {
+            data->layer_status[i] = PULL_COMPLETED;
+        } else if (desc->layers[i].status == CACHED) {
+            data->layer_status[i] = CACHED;
+        }
+    }
+    data->image_ref = NULL;
+    stream->write_func(stream->writer, data);
+    free_isulad_pull_format(data);
+    return 0;
+}
+
+
+static int fetch_all(pull_descriptor *desc, stream_func_wrapper *stream)
 {
     size_t i = 0;
     size_t j = 0;
@@ -1529,6 +1627,9 @@ static int fetch_all(pull_descriptor *desc)
     for (i = 0; i < desc->layers_len; i++) {
         infos[i].desc = desc;
         infos[i].index = i;
+        desc->layers[i].status = WAITING;
+        desc->layers[i].dlnow = 0;
+        desc->layers[i].extracted_now = 0;
         // Skip empty layer
         if (desc->layers[i].empty_layer) {
             continue;
@@ -1604,7 +1705,16 @@ static int fetch_all(pull_descriptor *desc)
     // wait until all pulled or cancelled
     mutex_lock(&g_shared->mutex);
     while (!all_fetch_complete(desc, infos, &result)) {
-        ts.tv_sec = time(NULL) + DEFAULT_WAIT_TIMEOUT; // avoid wait forever
+        write_to_stream_func(desc, stream);
+        if (stream != NULL) { // write progress into stream, time interval should be shorter
+            struct timeval now;
+            gettimeofday(&now, NULL);
+            int nsec = now.tv_usec * 1000 + (DEFAULT_WAIT_TIMEOUT_MS % 1000) * 1000000;
+            ts.tv_nsec = nsec % 1000000000;
+            ts.tv_sec = now.tv_sec + nsec / 1000000000 + DEFAULT_WAIT_TIMEOUT_MS / 1000;
+        } else { //
+            ts.tv_sec = time(NULL) + DEFAULT_WAIT_TIMEOUT; // avoid wait forever
+        }
         cond_ret = pthread_cond_timedwait(&g_shared->cond, &g_shared->mutex, &ts);
         if (cond_ret != 0 && cond_ret != ETIMEDOUT) {
             // here we can't just break and cleanup resources because threads are running.
@@ -1616,6 +1726,7 @@ static int fetch_all(pull_descriptor *desc)
             continue;
         }
     }
+    write_to_stream_func(desc, stream);
 
     if (ret == 0) {
         ret = result;
@@ -1761,7 +1872,7 @@ out:
     return reuse;
 }
 
-static int registry_fetch(pull_descriptor *desc, bool *reuse)
+static int registry_fetch(pull_descriptor *desc, bool *reuse, stream_func_wrapper *stream)
 {
     int ret = 0;
 
@@ -1782,7 +1893,7 @@ static int registry_fetch(pull_descriptor *desc, bool *reuse)
         goto out;
     }
 
-    ret = fetch_all(desc);
+    ret = fetch_all(desc, stream);
     if (ret != 0) {
         ERROR("fetch layers failed for image %s", desc->image_name);
         isulad_try_set_error_message("fetch layers failed");
@@ -1995,7 +2106,7 @@ static void try_rollback_layers(pull_descriptor *desc)
     }
 }
 
-int registry_pull(registry_pull_options *options)
+int registry_pull(registry_pull_options *options, stream_func_wrapper *stream)
 {
     int ret = 0;
     pull_descriptor *desc = NULL;
@@ -2020,7 +2131,7 @@ int registry_pull(registry_pull_options *options)
         goto out;
     }
 
-    ret = registry_fetch(desc, &reuse);
+    ret = registry_fetch(desc, &reuse, stream);
     if (ret != 0) {
         ERROR("error fetching %s", options->image_name);
         isulad_try_set_error_message("error fetching %s", options->image_name);

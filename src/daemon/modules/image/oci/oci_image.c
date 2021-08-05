@@ -37,6 +37,7 @@
 #include "utils_string.h"
 #include "isulad_config.h"
 
+
 #define IMAGE_NOT_KNOWN_ERR "image not known"
 
 struct oci_image_module_data g_oci_image_module_data = { 0 };
@@ -311,9 +312,9 @@ void oci_exit()
     free_oci_image_data();
 }
 
-int oci_pull_rf(const im_pull_request *request, im_pull_response *response)
+int oci_pull_rf(const im_pull_request *request, im_pull_response *response, stream_func_wrapper *stream)
 {
-    return oci_do_pull_image(request, response);
+    return oci_do_pull_image(request, response, stream);
 }
 
 int oci_prepare_rf(const im_prepare_request *request, char **real_rootfs)
