@@ -690,8 +690,16 @@ static int progress(void *p, double dltotal, double dlnow, double ultotal, doubl
     return 0;
 }
 
+static int download_layer_progress(void *p, double dltotal, double dlnow, double ultotal, double ulnow)
+{
+    size_t *layer_dlnow = p;
+    *layer_dlnow = dlnow;
+    return 0;
+}
+
+// if index != -1, pull layer[index]
 int http_request_file(pull_descriptor *desc, const char *url, const char **custom_headers, char *file,
-                      resp_data_type type, CURLcode *errcode)
+                      resp_data_type type, CURLcode *errcode, int index)
 {
     int ret = 0;
     struct http_get_options *options = NULL;
@@ -719,8 +727,17 @@ int http_request_file(pull_descriptor *desc, const char *url, const char **custo
     options->outputtype = HTTP_REQUEST_FILE;
     options->output = file;
     options->show_progress = 1;
-    options->progressinfo = &desc->cancel;
-    options->progress_info_op = progress;
+
+    if(index == -1){
+        // pass desc->cancel 
+        options->progressinfo = &desc->cancel;
+        options->progress_info_op = progress;
+    }
+    else{
+        // fetch dlnow
+        options->progressinfo = &desc->layers[index].dlnow;
+        options->progress_info_op = download_layer_progress;
+    }
 
     ret = setup_common_options(desc, options, url, custom_headers);
     if (ret != 0) {
