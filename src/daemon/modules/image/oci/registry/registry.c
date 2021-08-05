@@ -1203,7 +1203,7 @@ static void *fetch_layer_in_thread(void *arg)
         ret = -1;
         goto out;
     }
-
+    desc->layer[info->index] = DOWNLOAD_COMPLETED;
     // calc diffid only if it's schema v1. schema v1 have
     // no diff id so we need to calc it. schema v2 have
     // diff id in config and we do not want to calc it again
@@ -1216,7 +1216,6 @@ static void *fetch_layer_in_thread(void *arg)
             goto out;
         }
     }
-
 out:
     // notify to continue downloading
     mutex_lock(&g_shared->mutex);
@@ -1277,6 +1276,7 @@ static int add_fetch_task(thread_fetch_info *info)
     cached_layers_added = true;
 
     if (cache == NULL) {
+        info->desc.layers[info->index].status = DOWNLOADING;
         ret = pthread_create(&tid, NULL, fetch_layer_in_thread, info);
         if (ret != 0) {
             ERROR("failed to start thread fetch layer %zu", info->index);
@@ -1284,6 +1284,7 @@ static int add_fetch_task(thread_fetch_info *info)
         }
         info->desc->pulling_number++;
     }
+    else info->desc.layers[info->index].status = PULL_COMPLETED;
 
 out:
     if (ret != 0 && cached_layers_added) {
@@ -1444,6 +1445,7 @@ static void *register_layers_in_thread(void *arg)
             goto out;
         }
 
+        desc->layers[i].status = EXTRACTING;
         // register layer
         ret = register_layer(desc, i);
         if (ret != 0) {
@@ -1451,6 +1453,7 @@ static void *register_layers_in_thread(void *arg)
             isulad_try_set_error_message("register layers failed");
             goto out;
         }
+        desc->layers[i].status = PULL_COMPLETED;
     }
 
 out:
@@ -1491,6 +1494,53 @@ static int add_fetch_config_task(pull_descriptor *desc)
     return 0;
 }
 
+void show_progress_bar(pull_descriptor *desc){
+    layer_blob *layer;
+    int progress;
+    const int bar_length = 30;
+    size_t total_size, process_now;
+    float total_size_MB, process_now_MB;
+    
+    for(int i = 0; i < desc->layers_len; i++){
+        layer = &desc->layers[i];
+        printf("\r%s: ", layer->digest);
+        if(layer->status == WAITING){
+            printf("Waiting");
+        }
+        else if(layer->status == DOWNLOADING){
+            printf("Downloading ");
+            total_size = layer->size;
+            process_now = layer->dlnow;
+            total_size_MB = 1.0f*total_size/1024.0f/1024.0f;
+            process_now_MB = 1.0f*process_now/1024.0f/1024.0f;
+            progress = process_now*bar_length/total_size;
+            /********************************
+            putchar('[');
+            for(int j = 1; j <= BAR_LENGTH; j++){
+                if(j<progress)putchar('=');
+                else if(j==progress)putchar('>');
+                else putchar(' ');
+            }
+            putchar(']');
+            ********************************/
+            printf(" %.2fMB/%.2fMB", process_now_MB, total_size_MB);
+        }
+        else if(layer->status == DOWNLOAD_COMPLETED){
+            printf("Download completed");
+            for(int j = 0; j < 20; j++) putchar(' ');
+        }
+        else if(layer->status == EXTRACTING){
+            printf("Extracting");
+            for(int j = 0; j < 20; j++) putchar(' ');
+        }
+        else if(layer->status == PULL_COMPLETED){
+            printf("Pull completed");
+            for(int j = 0; j < 20; j++) putchar(' ');
+        }
+        putchar('\n');
+    }
+}
+
 static int fetch_all(pull_descriptor *desc)
 {
     size_t i = 0;
@@ -1529,6 +1579,9 @@ static int fetch_all(pull_descriptor *desc)
     for (i = 0; i < desc->layers_len; i++) {
         infos[i].desc = desc;
         infos[i].index = i;
+        desc->layers[i].status= WAITING;
+        desc->layers[i].dlnow = 0;
+        desc->layers[i].extracted_now = 0;
         // Skip empty layer
         if (desc->layers[i].empty_layer) {
             continue;
@@ -1582,7 +1635,7 @@ static int fetch_all(pull_descriptor *desc)
         infos[i].use = true;
         infos[i].file = util_strdup_s(file);
         infos[i].blob_digest = util_strdup_s(desc->layers[i].digest);
-
+ 
         ret = add_fetch_task(&infos[i]);
         if (ret != 0) {
             infos[i].use = false;
@@ -1614,6 +1667,10 @@ static int fetch_all(pull_descriptor *desc)
                   cond_ret, strerror(errno));
             sleep(10);
             continue;
+        }
+        else {
+            show_progress_bar(desc);
+            if(!all_fetch_complete(desc, infos, &result))printf("\033[%dF", desc->layers_len);
         }
     }
 

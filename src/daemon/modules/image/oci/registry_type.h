@@ -56,11 +56,25 @@ typedef struct {
     int result;
 } config_blob;
 
+typedef enum{
+    WAITING,
+    DOWNLOADING,
+    DOWNLOAD_COMPLETED,
+    EXTRACTING,
+    PULL_COMPLETED,
+}layer_task_status;
+
 typedef struct {
     bool empty_layer;
     char *media_type;
+    //status for each layer
+    layer_task_status status;
     // blob size
     size_t size;
+    // size downloaded so far
+    size_t dlnow;
+    //size extracted so far
+    size_t extracted_now;
     // compressed digest
     char *digest;
     // uncompressed digest

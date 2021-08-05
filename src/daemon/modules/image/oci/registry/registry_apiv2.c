@@ -412,9 +412,9 @@ out:
 
     return ret;
 }
-
+// if index != -1 ,  pull layers[index]
 static int registry_request(pull_descriptor *desc, char *path, char **custom_headers, char *file, char **output_buffer,
-                            resp_data_type type, CURLcode *errcode)
+                            resp_data_type type, CURLcode *errcode, int index)
 {
     int ret = 0;
     int sret = 0;
@@ -462,7 +462,7 @@ static int registry_request(pull_descriptor *desc, char *path, char **custom_hea
         }
         DEBUG("resp=%s", *output_buffer);
     } else {
-        ret = http_request_file(desc, url, (const char **)headers, file, type, errcode);
+        ret = http_request_file(desc, url, (const char **)headers, file, type, errcode, index);
         if (ret != 0) {
             ERROR("http request file failed, url: %s", url);
             goto out;
@@ -684,7 +684,7 @@ static int fetch_manifest_list(pull_descriptor *desc, char *file, char **content
 
     while (retry_times > 0) {
         retry_times--;
-        ret = registry_request(desc, path, custom_headers, file, NULL, HEAD_BODY, &errcode);
+        ret = registry_request(desc, path, custom_headers, file, NULL, HEAD_BODY, &errcode, -1);
         if (ret != 0) {
             if (retry_times > 0 && !desc->cancel) {
                 continue;
@@ -735,7 +735,8 @@ static void try_log_resp_body(char *path, char *file)
     return;
 }
 
-static int fetch_data(pull_descriptor *desc, char *path, char *file, char *content_type, char *digest)
+// if index != -1 , pull layer[index]
+static int fetch_data(pull_descriptor *desc, char *path, char *file, char *content_type, char *digest, int index)
 {
     int ret = 0;
     int sret = 0;
@@ -767,7 +768,7 @@ static int fetch_data(pull_descriptor *desc, char *path, char *file, char *conte
 
     while (retry_times > 0) {
         retry_times--;
-        ret = registry_request(desc, path, custom_headers, file, NULL, type, &errcode);
+        ret = registry_request(desc, path, custom_headers, file, NULL, type, &errcode, index);
         if (ret != 0) {
             if (errcode == CURLE_RANGE_ERROR) {
                 forbid_resume = true;
@@ -1024,7 +1025,7 @@ static int fetch_manifest_data(pull_descriptor *desc, char *file, char **content
             goto out;
         }
 
-        ret = fetch_data(desc, path, file, *content_type, *digest);
+        ret = fetch_data(desc, path, file, *content_type, *digest, -1);
         if (ret != 0) {
             ERROR("registry: Get %s failed", path);
             goto out;
@@ -1105,7 +1106,7 @@ int fetch_config(pull_descriptor *desc)
         goto out;
     }
 
-    ret = fetch_data(desc, path, file, desc->config.media_type, desc->config.digest);
+    ret = fetch_data(desc, path, file, desc->config.media_type, desc->config.digest, -1);
     if (ret != 0) {
         ERROR("registry: Get %s failed", path);
         goto out;
@@ -1150,7 +1151,7 @@ int fetch_layer(pull_descriptor *desc, size_t index)
         goto out;
     }
 
-    ret = fetch_data(desc, path, file, layer->media_type, layer->digest);
+    ret = fetch_data(desc, path, file, layer->media_type, layer->digest, index);
     if (ret != 0) {
         ERROR("registry: Get %s failed", path);
         goto out;
@@ -1216,7 +1217,7 @@ int login_to_registry(pull_descriptor *desc)
         goto out;
     }
 
-    ret = registry_request(desc, path, NULL, NULL, &resp_buffer, HEAD_BODY, &errcode);
+    ret = registry_request(desc, path, NULL, NULL, &resp_buffer, HEAD_BODY, &errcode, -1);
     if (ret != 0) {
         ERROR("registry: Get %s failed, resp: %s", path, resp_buffer);
         isulad_try_set_error_message("login to registry for %s failed", desc->host);
