@@ -131,7 +131,7 @@ $ tar -zxf lxc-4.0.3.tar.gz
 $ ./apply-patches
 $ cd lxc-4.0.3
 $ sudo -E ./autogen.sh
-$ sudo -E ./configure
+$ ./configure --sysconfdir=/etc --prefix=/usr
 $ sudo -E make -j $(nproc)
 $ sudo -E make install
 ```
@@ -142,7 +142,7 @@ $ git clone https://gitee.com/openeuler/lcr.git
 $ cd lcr
 $ mkdir build
 $ cd build
-$ sudo -E cmake ..
+$ cmake -DLIB_INSTALL_DIR=/usr/lib -DCMAKE_INSTALL_PREFIX=/usr ../
 $ sudo -E make -j $(nproc)
 $ sudo -E make install
 ```
