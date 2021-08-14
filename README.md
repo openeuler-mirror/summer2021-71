@@ -5,7 +5,8 @@
 * summer分支是至今code && push的代码，作为OSPP前半期的分支
 * update分支同summer分支，准备用来做OSPP后半期的分支
 
-## 修改过的文件
+## 修改过的文件 && 中期成果
+* 可以翻summer分支下的commit记录具体查看修改部分
 * docs目录
     * i.md 自己读daemon部分源码做的笔记
     * build_guide_zh.md 修改了一下lcr和lxc的编译命令
