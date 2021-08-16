@@ -57,11 +57,11 @@ typedef struct {
 } config_blob;
 
 typedef enum{
-    WAITING,
-    DOWNLOADING,
-    DOWNLOAD_COMPLETED,
-    EXTRACTING,
-    PULL_COMPLETED,
+    WAITING = 0,
+    DOWNLOADING = 1,
+    DOWNLOAD_COMPLETED = 2,
+    EXTRACTING = 3,
+    PULL_COMPLETED = 4,
 }layer_task_status;
 
 typedef struct {

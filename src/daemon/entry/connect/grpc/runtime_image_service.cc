@@ -17,6 +17,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <thread>
 #include "isula_libutils/log.h"
 #include "cri_helpers.h"
 #include "cri_image_manager_service_impl.h"
@@ -27,20 +28,27 @@ RuntimeImageServiceImpl::RuntimeImageServiceImpl()
     rService = std::move(service);
 }
 
+//???????
+void write_progress_into_stream(ServerWriter<runtime::v1alpha2::PullImageProgress> *progress){
+
+}
+
+
+//???????
 grpc::Status RuntimeImageServiceImpl::PullImage(grpc::ServerContext *context,
                                                 const runtime::v1alpha2::PullImageRequest *request,
-                                                runtime::v1alpha2::PullImageResponse *reply)
+                                                ServerWriter<runtime::v1alpha2::PullImageProgress> *progress)
 {
     Errors error;
 
     EVENT("Event: {Object: CRI, Type: Pulling image %s}", request->image().image().c_str());
-
+    std::thread progress_writer(write_progress_into_stream, progress);
     std::string imageRef = rService->PullImage(request->image(), request->auth(), error);
     if (!error.Empty() || imageRef.empty()) {
         ERROR("{Object: CRI, Type: Failed to pull image %s}", request->image().image().c_str());
         return grpc::Status(grpc::StatusCode::UNKNOWN, error.GetMessage());
     }
-    reply->set_image_ref(imageRef);
+    //reply->set_image_ref(imageRef);
 
     EVENT("Event: {Object: CRI, Type: Pulled image %s with ref %s}", request->image().image().c_str(),
           imageRef.c_str());

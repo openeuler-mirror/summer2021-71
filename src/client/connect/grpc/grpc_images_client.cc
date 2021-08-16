@@ -18,6 +18,7 @@
 #include "images.grpc.pb.h"
 #include "utils.h"
 #include <string>
+#include <thread>
 
 using namespace images;
 
@@ -364,7 +365,8 @@ public:
         return 0;
     }
 
-    auto response_from_grpc(runtime::v1alpha2::PullImageResponse *gresponse, isula_pull_response *response) -> int override
+    //???????
+    auto response_from_grpc(runtime::v1alpha2::PullImageProgress *gresponse, isula_pull_response *response) -> int override
     {
         if (!gresponse->image_ref().empty()) {
             response->image_ref = util_strdup_s(gresponse->image_ref().c_str());
@@ -383,10 +385,17 @@ public:
         return 0;
     }
 
+    //???????
+    auto write_progress(runtime::v1alpha2::PullImageProgress *progress) -> int {
+        return 0;
+    }
+    
+    //?????
     auto grpc_call(ClientContext *context, const runtime::v1alpha2::PullImageRequest &req,
-                   runtime::v1alpha2::PullImageResponse *reply) -> Status override
+                   runtime::v1alpha2::PullImageProgress *progress) -> Status override
     {
-        return stub_->PullImage(context, req, reply);
+        std::thread progress_in_thread(write_progress, progress);
+        return stub_->PullImage(context, req, progress);
     }
 };
 

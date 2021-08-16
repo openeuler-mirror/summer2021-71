@@ -121,7 +121,7 @@ service ImageService {
     // nil.
     rpc ImageStatus(ImageStatusRequest) returns (ImageStatusResponse) {}
     // PullImage pulls an image with authentication config.
-    rpc PullImage(PullImageRequest) returns (PullImageResponse) {}
+    rpc PullImage(PullImageRequest) returns (stream PullImageProgress) {}
     // RemoveImage removes the image.
     // This call is idempotent, and must not return an error if the image has
     // already been removed.
@@ -1117,11 +1117,36 @@ message PullImageRequest {
     PodSandboxConfig sandbox_config = 3;
 }
 
+/****************
 message PullImageResponse {
     // Reference to the image in use. For most runtimes, this should be an
     // image ID or digest.
     string image_ref = 1;
 }
+****************/
+
+message PullImageProgress {
+
+    // stream message for displaying progress bars while pulling images
+
+    int32 layers_num = 1;
+    repeated string layer_digest = 2;
+    repeated int32 layer_size = 3;
+    repeated int32 dlnow = 4;
+
+    enum task_status {
+        WAITING = 0,
+        DOWNLOADING = 1,
+        DOWNLOAD_COMPLETED = 2,
+        EXTRACTING = 3,
+        PULL_COMPLETED = 4,
+    }
+
+    repeated task_status layer_status = 5;
+
+    string image_ref = 6;
+}
+
 
 message RemoveImageRequest {
     // Spec of the image to remove.
