@@ -1494,52 +1494,6 @@ static int add_fetch_config_task(pull_descriptor *desc)
     return 0;
 }
 
-void show_progress_bar(pull_descriptor *desc){
-    layer_blob *layer;
-    //int progress;
-    //const int bar_length = 30;
-    size_t total_size, process_now;
-    float total_size_MB, process_now_MB;
-    
-    for(int i = 0; i < desc->layers_len; i++){
-        layer = &desc->layers[i];
-        printf("\r%s: ", layer->digest);
-        if(layer->status == WAITING){
-            printf("Waiting");
-        }
-        else if(layer->status == DOWNLOADING){
-            printf("Downloading ");
-            total_size = layer->size;
-            process_now = layer->dlnow;
-            total_size_MB = 1.0f*total_size/1024.0f/1024.0f;
-            process_now_MB = 1.0f*process_now/1024.0f/1024.0f;
-            //progress = process_now*bar_length/total_size;
-            /********************************
-            putchar('[');
-            for(int j = 1; j <= BAR_LENGTH; j++){
-                if(j<progress)putchar('=');
-                else if(j==progress)putchar('>');
-                else putchar(' ');
-            }
-            putchar(']');
-            ********************************/
-            printf(" %.2fMB/%.2fMB", process_now_MB, total_size_MB);
-        }
-        else if(layer->status == DOWNLOAD_COMPLETED){
-            printf("Download completed");
-            for(int j = 0; j < 20; j++) putchar(' ');
-        }
-        else if(layer->status == EXTRACTING){
-            printf("Extracting");
-            for(int j = 0; j < 20; j++) putchar(' ');
-        }
-        else if(layer->status == PULL_COMPLETED){
-            printf("Pull completed");
-            for(int j = 0; j < 20; j++) putchar(' ');
-        }
-        putchar('\n');
-    }
-}
 
 static int fetch_all(pull_descriptor *desc)
 {
@@ -1669,7 +1623,7 @@ static int fetch_all(pull_descriptor *desc)
             continue;
         }
         else {
-            show_progress_bar(desc);
+            write_func(desc);
             if(!all_fetch_complete(desc, infos, &result))printf("\033[%ldF", desc->layers_len);
         }
     }
