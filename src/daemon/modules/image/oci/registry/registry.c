@@ -1284,7 +1284,7 @@ static int add_fetch_task(thread_fetch_info *info)
         }
         info->desc->pulling_number++;
     }
-    else info->desc->layers[info->index].status = PULL_COMPLETED;
+    else info->desc->layers[info->index].status = CACHED;
 
 out:
     if (ret != 0 && cached_layers_added) {
@@ -1495,7 +1495,17 @@ static int add_fetch_config_task(pull_descriptor *desc)
 }
 
 
-static int fetch_all(pull_descriptor *desc)
+int write_to_stream_func(pull_descriptor *desc, stream_func_wrapper *stream)
+{
+    if(stream == NULL || stream->write_func == NULL || stream->writer == NULL) {
+        return -1;
+    }
+
+    return 0;
+}
+
+
+static int fetch_all(pull_descriptor *desc, stream_func_wrapper *stream)
 {
     size_t i = 0;
     size_t j = 0;
@@ -1621,10 +1631,8 @@ static int fetch_all(pull_descriptor *desc)
                   cond_ret, strerror(errno));
             sleep(10);
             continue;
-        }
-        else {
-            write_func(desc);
-            if(!all_fetch_complete(desc, infos, &result))printf("\033[%ldF", desc->layers_len);
+        } else {
+            write_to_stream_func(desc ,stream);
         }
     }
 
@@ -1772,7 +1780,7 @@ out:
     return reuse;
 }
 
-static int registry_fetch(pull_descriptor *desc, bool *reuse)
+static int registry_fetch(pull_descriptor *desc, bool *reuse, stream_func_wrapper *stream)
 {
     int ret = 0;
 
@@ -1793,7 +1801,7 @@ static int registry_fetch(pull_descriptor *desc, bool *reuse)
         goto out;
     }
 
-    ret = fetch_all(desc);
+    ret = fetch_all(desc, stream);
     if (ret != 0) {
         ERROR("fetch layers failed for image %s", desc->image_name);
         isulad_try_set_error_message("fetch layers failed");
@@ -2006,7 +2014,7 @@ static void try_rollback_layers(pull_descriptor *desc)
     }
 }
 
-int registry_pull(registry_pull_options *options)
+int registry_pull(registry_pull_options *options, stream_func_wrapper *stream)
 {
     int ret = 0;
     pull_descriptor *desc = NULL;
@@ -2031,7 +2039,7 @@ int registry_pull(registry_pull_options *options)
         goto out;
     }
 
-    ret = registry_fetch(desc, &reuse);
+    ret = registry_fetch(desc, &reuse, stream);
     if (ret != 0) {
         ERROR("error fetching %s", options->image_name);
         isulad_try_set_error_message("error fetching %s", options->image_name);

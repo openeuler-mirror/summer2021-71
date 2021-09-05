@@ -28,7 +28,9 @@
 #include "events_sender_api.h"
 #include "isula_libutils/log.h"
 #include "service_image_api.h"
+#include "stream_wrapper.h"
 #include "utils.h"
+
 
 using namespace CRI;
 static void conv_image_to_grpc(const imagetool_image_summary *element, std::unique_ptr<runtime::v1alpha2::Image> &image)
@@ -253,7 +255,7 @@ cleanup:
 }
 
 auto ImageManagerServiceImpl::PullImage(const runtime::v1alpha2::ImageSpec &image,
-                                        const runtime::v1alpha2::AuthConfig &auth, Errors &error) -> std::string
+                                        const runtime::v1alpha2::AuthConfig &auth, Errors &error, stream_func_wrapper *stream) -> std::string
 {
     std::string out_str;
     im_pull_request *request { nullptr };
@@ -265,7 +267,7 @@ auto ImageManagerServiceImpl::PullImage(const runtime::v1alpha2::ImageSpec &imag
     }
     request->type = util_strdup_s(IMAGE_TYPE_OCI);
 
-    ret = im_pull_image(request, &response);
+    ret = im_pull_image(request, &response, stream);
     if (ret != 0) {
         if (response != nullptr && response->errmsg != nullptr) {
             error.SetError(response->errmsg);

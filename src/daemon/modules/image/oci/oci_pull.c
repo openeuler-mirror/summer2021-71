@@ -31,6 +31,7 @@
 #include "utils_string.h"
 #include "oci_image.h"
 
+
 static int decode_auth(const char *auth, char **username, char **password)
 {
     int nret = 0;
@@ -87,7 +88,7 @@ static void update_option_insecure_registry(registry_pull_options *options, char
     }
 }
 
-static int pull_image(const im_pull_request *request, char **name)
+static int pull_image(const im_pull_request *request, char **name, stream_func_wrapper *stream)
 {
     int ret = -1;
     registry_pull_options *options = NULL;
@@ -124,7 +125,7 @@ static int pull_image(const im_pull_request *request, char **name)
         options->image_name = oci_default_tag(request->image);
         options->dest_image_name = oci_normalize_image_name(request->image);
         update_option_insecure_registry(options, insecure_registries, host);
-        ret = registry_pull(options);
+        ret = registry_pull(options, stream);
         if (ret != 0) {
             ERROR("pull image failed");
             goto out;
@@ -150,7 +151,7 @@ static int pull_image(const im_pull_request *request, char **name)
             free(host);
             host = NULL;
             options->dest_image_name = oci_normalize_image_name(request->image);
-            ret = registry_pull(options);
+            ret = registry_pull(options, stream);
             if (ret != 0) {
                 continue;
             }
@@ -169,7 +170,7 @@ out:
     return ret;
 }
 
-int oci_do_pull_image(const im_pull_request *request, im_pull_response *response)
+int oci_do_pull_image(const im_pull_request *request, im_pull_response *response, stream_func_wrapper *stream)
 {
     int ret = 0;
     imagetool_image_summary *image = NULL;
@@ -181,7 +182,7 @@ int oci_do_pull_image(const im_pull_request *request, im_pull_response *response
         return -1;
     }
 
-    ret = pull_image(request, &dest_image_name);
+    ret = pull_image(request, &dest_image_name, stream);
     if (ret != 0) {
         ERROR("pull image %s failed", request->image);
         isulad_set_error_message("Failed to pull image %s with error: %s", request->image, g_isulad_errmsg);

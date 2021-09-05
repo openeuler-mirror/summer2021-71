@@ -31,7 +31,7 @@ public:
                              Errors &error) -> std::unique_ptr<runtime::v1alpha2::Image> = 0;
 
     virtual auto PullImage(const runtime::v1alpha2::ImageSpec &image, const runtime::v1alpha2::AuthConfig &auth,
-                           Errors &error) -> std::string = 0;
+                           Errors &error, stream_func_wrapper *stream) -> std::string = 0;
 
     virtual void RemoveImage(const runtime::v1alpha2::ImageSpec &image, Errors &error) = 0;
 

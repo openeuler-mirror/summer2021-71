@@ -62,6 +62,7 @@ typedef enum{
     DOWNLOAD_COMPLETED = 2,
     EXTRACTING = 3,
     PULL_COMPLETED = 4,
+    CACHED = 5,
 }layer_task_status;
 
 typedef struct {

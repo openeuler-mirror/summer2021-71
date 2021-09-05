@@ -22,6 +22,7 @@
 #include "image_api.h"
 #include "isula_libutils/oci_image_spec.h"
 #include "oci_common_operators.h"
+#include "stream_wrapper.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,7 +44,7 @@ struct oci_image_module_data *get_oci_image_data(void);
 int oci_init(const isulad_daemon_configs *args);
 void oci_exit();
 
-int oci_pull_rf(const im_pull_request *request, im_pull_response *response);
+int oci_pull_rf(const im_pull_request *request, im_pull_response *response, stream_func_wrapper *stream);
 int oci_rmi(const im_rmi_request *request);
 int oci_get_filesystem_info(im_fs_info_response **response);
 int oci_load_image(const im_load_request *request);

@@ -36,7 +36,7 @@ public:
                                                           Errors &error) override;
 
     std::string PullImage(const runtime::v1alpha2::ImageSpec &image, const runtime::v1alpha2::AuthConfig &auth,
-                          Errors &error) override;
+                          Errors &error, stream_func_wrapper *stream) override;
 
     void RemoveImage(const runtime::v1alpha2::ImageSpec &image, Errors &error) override;
 

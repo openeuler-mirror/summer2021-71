@@ -16,12 +16,13 @@
 #define DAEMON_MODULES_IMAGE_OCI_OCI_PULL_H
 
 #include "image_api.h"
+#include "stream_wrapper.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int oci_do_pull_image(const im_pull_request *request, im_pull_response *response);
+int oci_do_pull_image(const im_pull_request *request, im_pull_response *response, stream_func_wrapper *stream);
 
 #ifdef __cplusplus
 }

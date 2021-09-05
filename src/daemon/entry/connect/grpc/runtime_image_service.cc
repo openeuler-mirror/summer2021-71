@@ -20,6 +20,7 @@
 #include "isula_libutils/log.h"
 #include "cri_helpers.h"
 #include "cri_image_manager_service_impl.h"
+#include "stream_wrapper.h"
 
 RuntimeImageServiceImpl::RuntimeImageServiceImpl()
 {
@@ -27,12 +28,12 @@ RuntimeImageServiceImpl::RuntimeImageServiceImpl()
     rService = std::move(service);
 }
 
-//???????
-void write_progress_into_stream(ServerWriter<runtime::v1alpha2::PullImageProgress> *writer){
+
+bool grpc_progress_into_stream_write_function(void *writer, void *data) {
 
 }
 
-//???????
+
 grpc::Status RuntimeImageServiceImpl::PullImage(grpc::ServerContext *context,
                                                 const runtime::v1alpha2::PullImageRequest *request,
                                                 grpc::ServerWriter<runtime::v1alpha2::PullImageProgress> *writer)
@@ -42,8 +43,11 @@ grpc::Status RuntimeImageServiceImpl::PullImage(grpc::ServerContext *context,
     EVENT("Event: {Object: CRI, Type: Pulling image %s}", request->image().image().c_str());
     
     //new stream wrapper
+    stream_func_wrapper stream = { 0 }; 
+    stream.writer = (void *)writer;
+    stream.write_func = &grpc_progress_into_stream_write_function;
 
-    std::string imageRef = rService->PullImage(request->image(), request->auth(), error);
+    std::string imageRef = rService->PullImage(request->image(), request->auth(), error, &stream);
     if (!error.Empty() || imageRef.empty()) {
         ERROR("{Object: CRI, Type: Failed to pull image %s}", request->image().image().c_str());
         return grpc::Status(grpc::StatusCode::UNKNOWN, error.GetMessage());
