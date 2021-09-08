@@ -170,6 +170,21 @@ out:
     return ret;
 }
 
+int write_image_ref_to_stream(stream_func_wrapper *stream, char *image_ref) 
+{
+    if(stream == NULL || stream->write_func == NULL || stream->writer == NULL) {
+        return -1;
+    }
+    struct isulad_pull_format *data;
+    data = malloc(sizeof(struct isulad_pull_format));
+    memset(data, 0, sizeof(data));
+
+    data->image_ref = image_ref;
+    stream->stream_write_fun_t(stream->writer, data);
+    return 0;
+}
+
+
 int oci_do_pull_image(const im_pull_request *request, im_pull_response *response, stream_func_wrapper *stream)
 {
     int ret = 0;
@@ -200,6 +215,7 @@ int oci_do_pull_image(const im_pull_request *request, im_pull_response *response
     }
 
     response->image_ref = util_strdup_s(image->id);
+    write_image_ref_to_stream(stream, response->image_ref);
 
 out:
     free_imagetool_image_summary(image);

@@ -53,6 +53,7 @@
 #include "utils_timestamp.h"
 #include "utils_verify.h"
 #include "oci_image.h"
+#include "pull_format.h"
 
 #define MANIFEST_BIG_DATA_KEY "manifest"
 #define MAX_CONCURRENT_DOWNLOAD_NUM 5
@@ -1500,7 +1501,13 @@ int write_to_stream_func(pull_descriptor *desc, stream_func_wrapper *stream)
     if(stream == NULL || stream->write_func == NULL || stream->writer == NULL) {
         return -1;
     }
-
+    struct isulad_pull_format *data;
+    data = malloc(sizeof(struct isulad_pull_format));
+    memset(data, 0, sizeof(data));
+    
+    
+    data->image_ref = NULL;
+    stream->stream_write_fun_t(stream->writer, data);
     return 0;
 }
 

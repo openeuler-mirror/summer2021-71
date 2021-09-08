@@ -21,6 +21,7 @@
 #include "cri_helpers.h"
 #include "cri_image_manager_service_impl.h"
 #include "stream_wrapper.h"
+#include "pull_format.h"
 
 RuntimeImageServiceImpl::RuntimeImageServiceImpl()
 {
@@ -30,12 +31,17 @@ RuntimeImageServiceImpl::RuntimeImageServiceImpl()
 
 int progress_to_grpc(struct isulad_pull_image_progress_format *progress, 
                      runtime::v1alpha2::PullImageProgress *gprogress) {
+    if(progress->image_ref != nullptr) {
+
+    } else {
+        
+    }
     return 0;
 }
 
 
 bool grpc_progress_into_stream_write_function(void *writer, void *data) {
-    struct isulad_pull_image_progress_format *progress = (struct isulad_pull_image_progress_format *)data;
+    struct isulad_pull_format *progress = (struct isulad_pull_format *)data;
     grpc::ServerWriter<runtime::v1alpha2::PullImageProgress> *gwriter = (grpc::ServerWriter<runtime::v1alpha2::PullImageProgress> *)writer;
     runtime::v1alpha2::PullImageProgress gprogress;
     if (progress_to_grpc(progress, &gprogress) != 0) {
