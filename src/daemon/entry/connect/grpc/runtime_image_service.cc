@@ -28,9 +28,20 @@ RuntimeImageServiceImpl::RuntimeImageServiceImpl()
     rService = std::move(service);
 }
 
+int progress_to_grpc(struct isulad_pull_image_progress_format *progress, 
+                     runtime::v1alpha2::PullImageProgress *gprogress) {
+    return 0;
+}
+
 
 bool grpc_progress_into_stream_write_function(void *writer, void *data) {
-
+    struct isulad_pull_image_progress_format *progress = (struct isulad_pull_image_progress_format *)data;
+    grpc::ServerWriter<runtime::v1alpha2::PullImageProgress> *gwriter = (grpc::ServerWriter<runtime::v1alpha2::PullImageProgress> *)writer;
+    runtime::v1alpha2::PullImageProgress gprogress;
+    if (progress_to_grpc(progress, &gprogress) != 0) {
+        return false;
+    }
+    return gwriter->Write(gprogress);
 }
 
 
