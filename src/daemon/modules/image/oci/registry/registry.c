@@ -1496,7 +1496,51 @@ static int add_fetch_config_task(pull_descriptor *desc)
 }
 
 
-int 
+void free_isulad_pull_format(struct isulad_pull_format *data) 
+{
+    if(data != NULL) {
+        if(data->layer_size != NULL) {
+            free(data->layer_size);
+        }
+        if(data->dlnow != NULL) {
+            free(data->dlnow);
+        }
+        if(data->layer_digest != NULL) {
+            free(data->layer_digest);
+        }
+        if(data->layer_status != NULL) {
+            free(data->layer_status);
+        }
+        free(data);
+    }
+}
+
+int prepare_isulad_pull_format(pull_descriptor *desc, struct isulad_pull_format *data) 
+{
+    if(data == NULL) {
+        return -1;
+    }
+    memset(data, 0, sizeof(struct isulad_pull_format));
+    data->layers_number = desc->layers_len;
+    data->layer_size = malloc(data->layers_number * sizeof(size_t)); // util_common_calloc_s
+    if(data->layer_size == NULL) {
+        return -1;
+    }
+    data->dlnow = malloc(data->layers_number * sizeof(size_t)); // util_common_calloc_s
+    if(data->dlnow == NULL) {
+        return -1;
+    }
+    data->layer_digest = malloc(data->layers_number * sizeof(char *)); // util_common_calloc_s
+    if(data->layer_digest == NULL) {
+        return -1;
+    }
+    data->layer_status = malloc(data->layers_number * sizeof(enum PULL_FORMAT_TASK_STATUS)); // util_common_calloc_s
+    if(data->layer_status == NULL) {
+        return -1;
+    }
+    return 0;
+}
+
 
 int write_to_stream_func(pull_descriptor *desc, stream_func_wrapper *stream)
 {
@@ -1506,12 +1550,15 @@ int write_to_stream_func(pull_descriptor *desc, stream_func_wrapper *stream)
 
     struct isulad_pull_format *data;
     data = malloc(sizeof(struct isulad_pull_format)); // util_common_calloc_s
-    memset(data, 0, sizeof(data));
-    data->layers_number = desc->layers_len;
-    data->layer_size = malloc(data->layers_number * sizeof(size_t)); // util_common_calloc_s
-    data->dlnow = malloc(data->layers_number * sizeof(size_t)); // util_common_calloc_s
-    data->layer_digest = malloc(data->layers_number * sizeof(char *)); // util_common_calloc_s
-    data->layer_status = malloc(data->layers_number * sizeof(enum PULL_FORMAT_TASK_STATUS)); // util_common_calloc_s
+    if(data == NULL) {
+        ERROR("Out of memory");
+        return -1;
+    }
+    if(prepare_isulad_pull_format(desc, data) != 0) {
+        ERROR("isulad_pull_format preparation failed");
+        free_isulad_pull_format(data);
+        return -1;
+    }
 
     for(int i = 0; i < desc->layers_len; i++) {
         data->layer_size[i] = desc->layers[i].size;
@@ -1533,7 +1580,7 @@ int write_to_stream_func(pull_descriptor *desc, stream_func_wrapper *stream)
     }
     data->image_ref = NULL;
     stream->stream_write_fun_t(stream->writer, data);
-    free(data);
+    free_isulad_pull_format(data);
     return 0;
 }
 
