@@ -1140,6 +1140,7 @@ message PullImageProgress {
         DOWNLOAD_COMPLETED = 2,
         EXTRACTING = 3,
         PULL_COMPLETED = 4,
+        CACHED = 5,
     }
 
     repeated task_status layer_status = 5;

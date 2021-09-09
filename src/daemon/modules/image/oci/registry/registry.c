@@ -1496,18 +1496,44 @@ static int add_fetch_config_task(pull_descriptor *desc)
 }
 
 
+int 
+
 int write_to_stream_func(pull_descriptor *desc, stream_func_wrapper *stream)
 {
     if(stream == NULL || stream->write_func == NULL || stream->writer == NULL) {
         return -1;
     }
+
     struct isulad_pull_format *data;
-    data = malloc(sizeof(struct isulad_pull_format));
+    data = malloc(sizeof(struct isulad_pull_format)); // util_common_calloc_s
     memset(data, 0, sizeof(data));
-    
-    
+    data->layers_number = desc->layers_len;
+    data->layer_size = malloc(data->layers_number * sizeof(size_t)); // util_common_calloc_s
+    data->dlnow = malloc(data->layers_number * sizeof(size_t)); // util_common_calloc_s
+    data->layer_digest = malloc(data->layers_number * sizeof(char *)); // util_common_calloc_s
+    data->layer_status = malloc(data->layers_number * sizeof(enum PULL_FORMAT_TASK_STATUS)); // util_common_calloc_s
+
+    for(int i = 0; i < desc->layers_len; i++) {
+        data->layer_size[i] = desc->layers[i].size;
+        data->dlnow[i] = desc->layers[i].dlnow;
+        data->layer_digest[i] = desc->layers[i].digest;
+        if(desc->layers[i].status == WAITING) {
+            data->status[i] = WAITING;
+        } else if (desc->layers[i].status == DOWNLOADING)) {
+            data->status[i] = DOWNLOADING;
+        } else if (desc->layers[i].status == DOWNLOAD_COMPLETED)) {
+            data->status[i] = DOWNLOAD_COMPLETED;
+        } else if (desc->layers[i].status == EXTRACTING)) {
+            data->status[i] = EXTRACTING;
+        } else if (desc->layers[i].status == PULL_COMPLETED)) {
+            data->status[i] = PULL_COMPLETED;
+        } else if (desc->layers[i].status == CACHED)) {
+            data->status[i] = CACHED;
+        }
+    }
     data->image_ref = NULL;
     stream->stream_write_fun_t(stream->writer, data);
+    free(data);
     return 0;
 }
 
