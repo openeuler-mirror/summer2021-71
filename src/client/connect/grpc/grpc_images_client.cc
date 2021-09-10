@@ -392,7 +392,9 @@ public:
         //const int bar_length = 30;
         size_t total_size, process_now;
         float total_size_MB, process_now_MB;
+        if(progress->image_ref != NULL) {
 
+        }
         for (int i = 0; i < progress.layers_len; i++) {
             layer = progress.layers[i];
             printf("\r%s: ", layer.digest);
