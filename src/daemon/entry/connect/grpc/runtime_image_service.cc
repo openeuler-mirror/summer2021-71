@@ -32,9 +32,28 @@ RuntimeImageServiceImpl::RuntimeImageServiceImpl()
 int progress_to_grpc(struct isulad_pull_image_progress_format *progress, 
                      runtime::v1alpha2::PullImageProgress *gprogress) {
     if(progress->image_ref != nullptr) {
-
+        gprogress->set_image_ref(progress->image_ref);
     } else {
-        
+        gprogress->set_layers_num(progress->layers_number);
+        for(int i = 0; i < gprogress->layers_num(); i++) {
+            runtime::v1alpha2::PullImageProgress::LayerInfo *layer = gprogress->add_layers();
+            layer->set_digest(prgress->layer_digest[i]);
+            layer->set_size(progress->layer_size[i]);
+            layer->set_dlnow(progress->dlnow[i]);
+            if(progress->layer_status[i] == WAITING) {
+                layer->set_status(runtime::v1alpha2::PullImageProgress::WAITING);
+            } else if(progress->layer_status[i] == DOWNLOADING) {
+                layer->set_status(runtime::v1alpha2::PullImageProgress::DOWNLOADING);
+            } else if(progress->layer_status[i] == DOWNLOAD_COMPLETED) {
+                layer->set_status(runtime::v1alpha2::PullImageProgress::DOWNLOAD_COMPLETED);
+            } else if(progress->layer_status[i] == EXTRACTING) {
+                layer->set_status(runtime::v1alpha2::PullImageProgress::EXTRACTING);
+            } else if(progress->layer_status[i] == PULL_COMPLETED) {
+                layer->set_status(runtime::v1alpha2::PullImageProgress::PULL_COMPLETED);
+            } else if(progress->layer_status[i] == CACHED) {
+                layer->set_status(runtime::v1alpha2::PullImageProgress::CACHED);
+            }
+        }
     }
     return 0;
 }

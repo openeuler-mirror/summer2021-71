@@ -1130,11 +1130,8 @@ message PullImageProgress {
     // stream message for displaying progress bars while pulling images
 
     int32 layers_num = 1;
-    repeated string layer_digest = 2;
-    repeated int32 layer_size = 3;
-    repeated int32 dlnow = 4;
 
-    enum task_status {
+    enum LayerStatus {
         WAITING = 0,
         DOWNLOADING = 1,
         DOWNLOAD_COMPLETED = 2,
@@ -1143,9 +1140,16 @@ message PullImageProgress {
         CACHED = 5,
     }
 
-    repeated task_status layer_status = 5;
+    message LayerInfo {
+        string digest = 1;
+        int32 size = 2;
+        int32 dlnow = 3;
+        LayerStatus status = 4;
+    }
 
-    string image_ref = 6;
+    repeated LayerInfo layers = 2;
+
+    string image_ref = 3;
 }
 
 
