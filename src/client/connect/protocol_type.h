@@ -485,6 +485,24 @@ struct isula_tag_response {
     char *errmsg;
 };
 
+enum ISULA_PULL_TASK_STATUS {
+    WAITING = 0,
+    DOWNLOADING = 1,
+    DOWNLOAD_COMPLETED = 2,
+    EXTRACTING = 3,
+    PULL_COMPLETED = 4,
+    CACHED = 5,
+};
+
+struct isula_pull_progress{
+  int layers_number;
+  char **layer_digest;
+  size_t *layer_size;
+  size_t *dlnow;
+  enum ISULA_PULL_TASK_STATUS *layer_status;
+  char *image_ref;
+};
+
 struct isula_pull_response {
     char *image_ref;
     uint32_t cc;

@@ -435,22 +435,59 @@ public:
     }
     
     // translate grpc_progress to isula_progress
-    void progress_from_grpc(isula_pull_progress &progress,
+    void progress_from_grpc(struct isula_pull_progress *progress,
                             runtime::v1alpha2::PullImageProgress *gprogress)
     {
-        
+        if(gprogress->has_image_ref()) {
+            progress.image_ref = util_strdup_s(gprogress->image_ref.c_str());
+        } else {
+            runtime::v1alpha2::PullImageProgress::LayerInfo layer;
+            progress.layers_number = gprogress->layers_num();
+
+            for(int i = 0; i < gprogress->layers_num; i++) {
+                layer = gprogress->layers(i);
+            }
+        }
+    }
+
+    void free_progress_info(struct isula_pull_progress &progress) {
+        if(progress.image_ref != NULL) {
+            free(progress.image_ref);
+            progress.image_ref = NULL;
+        }
+        if(progress.layer_size != NULL) {
+            free(progress.layer_size);
+            progress.layer_size = NULL;
+        }
+        if(progress.dlnow != NULL) {
+            free(progress.dlnow);
+            progress.dlnow = NULL;
+        }
+        if(progress.layer_digest != NULL) {
+            for(int i = 0; i < progress.layers_number; i++) {
+                if(progress.layer_digest[i] != NULL) {
+                    free(progress.layer_digest[i]);
+                    progress.layer_digest[i] = NULL;
+                }
+            }
+            free(progress.layer_digest);
+            progress.layer_digest = NULL;
+        }
+        progress.layers_number = 0;
     }
 
     auto grpc_call(ClientContext *context, const runtime::v1alpha2::PullImageRequest &req,
                    runtime::v1alpha2::PullImageProgress *gprogress) -> Status override
     {
         std::unique_ptr<ClientReader<runtime::v1alpha2::PullImageProgress> > 
-        reader(stub_->ListFeatures(context, req));
-        isula_pull_progress progress;
+        reader(stub_->PullImage(context, req));
+        struct isula_pull_progress progress;
+        memset(&progress, 0, sizeof(struct isula_pull_progress));
         while(reader->Read(gprogress)) {
             // print progress bar
             progress_from_grpc(progress, gprogress);
             show_progress_bar(progress);
+            free_progress_info(progress);
         }
         Status status = reader->Finish();
         return status;
