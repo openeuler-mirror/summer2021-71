@@ -1522,19 +1522,19 @@ int prepare_isulad_pull_format(pull_descriptor *desc, struct isulad_pull_format 
     }
     memset(data, 0, sizeof(struct isulad_pull_format));
     data->layers_number = desc->layers_len;
-    data->layer_size = malloc(data->layers_number * sizeof(size_t)); // util_common_calloc_s
+    data->layer_size = (size_t*)malloc(data->layers_number * sizeof(size_t)); // util_common_calloc_s
     if(data->layer_size == NULL) {
         return -1;
     }
-    data->dlnow = malloc(data->layers_number * sizeof(size_t)); // util_common_calloc_s
+    data->dlnow = (size_t*)malloc(data->layers_number * sizeof(size_t)); // util_common_calloc_s
     if(data->dlnow == NULL) {
         return -1;
     }
-    data->layer_digest = malloc(data->layers_number * sizeof(char *)); // util_common_calloc_s
+    data->layer_digest = (char **)malloc(data->layers_number * sizeof(char *)); // util_common_calloc_s
     if(data->layer_digest == NULL) {
         return -1;
     }
-    data->layer_status = malloc(data->layers_number * sizeof(enum PULL_FORMAT_TASK_STATUS)); // util_common_calloc_s
+    data->layer_status = (enum PULL_FORMAT_TASK_STATUS*)malloc(data->layers_number * sizeof(enum PULL_FORMAT_TASK_STATUS)); // util_common_calloc_s
     if(data->layer_status == NULL) {
         return -1;
     }
@@ -1549,7 +1549,7 @@ int write_to_stream_func(pull_descriptor *desc, stream_func_wrapper *stream)
     }
 
     struct isulad_pull_format *data;
-    data = malloc(sizeof(struct isulad_pull_format)); // util_common_calloc_s
+    data = (struct isulad_pull_format*)malloc(sizeof(struct isulad_pull_format)); // util_common_calloc_s
     if(data == NULL) {
         ERROR("Out of memory");
         return -1;

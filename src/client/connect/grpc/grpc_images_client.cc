@@ -387,23 +387,23 @@ public:
     // undefined struct isula_pull_layer && isula_pull_progress
     void show_progress_bar(const isula_pull_progress &progress)
     {
-        isula_pull_layer layer;
         //int progress;
         //const int bar_length = 30;
         size_t total_size, process_now;
         float total_size_MB, process_now_MB;
-        if(progress->image_ref != NULL) {
 
-        }
-        for (int i = 0; i < progress.layers_len; i++) {
-            layer = progress.layers[i];
-            printf("\r%s: ", layer.digest);
-            if (layer.status == WAITING) {
+        // if progress.image_ref != NULL :
+        // ----------------------------
+        // else :
+
+        for (int i = 0; i < progress.layers_number; i++) {
+            printf("\r%s: ", progress.layer_digest[i]);
+            if (progress.layer_status[i] == WAITING) {
                 printf("Waiting");
-            } else if (layer.status == DOWNLOADING) {
+            } else if (progress.layer_status[i] == DOWNLOADING) {
                 printf("Downloading ");
-                total_size = layer.size;
-                process_now = layer.dlnow;
+                total_size = progress.layer_size[i];
+                process_now = progress.dlnow[i];
                 total_size_MB = 1.0f * total_size / 1024.0f / 1024.0f;
                 process_now_MB = 1.0f * process_now / 1024.0f / 1024.0f;
                 //progress = process_now*bar_length/total_size;
@@ -417,15 +417,15 @@ public:
                 putchar(']');
                 **********************************/
                 printf(" %.2fMB/%.2fMB", process_now_MB, total_size_MB);
-            } else if (layer.status == DOWNLOAD_COMPLETED) {
+            } else if (progress.layer_status[i] == DOWNLOAD_COMPLETED) {
                 printf("Download completed");
                 for (int j = 0; j < 20; j++)
                     putchar(' ');
-            } else if (layer.status == EXTRACTING) {
+            } else if (progress.layer_status[i] == EXTRACTING) {
                 printf("Extracting");
                 for (int j = 0; j < 20; j++)
                     putchar(' ');
-            } else if (layer.status == PULL_COMPLETED) {
+            } else if (progress.layer_status[i] == PULL_COMPLETED) {
                 printf("Pull completed");
                 for (int j = 0; j < 20; j++)
                     putchar(' ');
@@ -435,17 +435,35 @@ public:
     }
     
     // translate grpc_progress to isula_progress
-    void progress_from_grpc(struct isula_pull_progress *progress,
+    void progress_from_grpc(struct isula_pull_progress &progress,
                             runtime::v1alpha2::PullImageProgress *gprogress)
     {
         if(gprogress->has_image_ref()) {
             progress.image_ref = util_strdup_s(gprogress->image_ref.c_str());
         } else {
-            runtime::v1alpha2::PullImageProgress::LayerInfo layer;
-            progress.layers_number = gprogress->layers_num();
-
-            for(int i = 0; i < gprogress->layers_num; i++) {
-                layer = gprogress->layers(i);
+            progress.layers_number = gprogress->layers_number();
+            progress.layer_digest = (char**)malloc(progress.layers_number*sizeof(char*));
+            progress.layer_size = (size_t*)malloc(progress.layers_number*sizeof(size_t));
+            progress.dlnow = (size_t*)malloc(progress.layers_number*sizeof(size_t));
+            progress.layer_status = (enum ISULA_PULL_TASK_STATUS *)malloc(progress.layers_number*sizeof(enum ISULA_PULL_TASK_STATUS));
+            for(int i = 0; i < gprogress->layers_number; i++) {
+                const runtime::v1alpha2::PullImageProgress::LayerInfo& layer = gprogress->layers(i);
+                progress.layer_digest[i] = util_strdup_s(layer.digest().c_str());
+                progress.layer_size[i] = layer.size();
+                progress.dlnow[i] = layer.dlnow();
+                if(layer.status() == runtime::v1alpha2::PullImageProgress::WAITING) {
+                    progress.layer_status[i] = WAITING;
+                } else if (layer.status() == runtime::v1alpha2::PullImageProgress::DOWNLOADING) {
+                    progress.layer_status[i] = DOWNLOADING;
+                } else if (layer.status() == runtime::v1alpha2::PullImageProgress::DOWNLOAD_COMPLETED) {
+                    progress.layer_status[i] = DOWNLOAD_COMPLETED;
+                } else if (layer.status() == runtime::v1alpha2::PullImageProgress::EXTRACTING) {
+                    progress.layer_status[i] = EXTRACTING;
+                } else if (layer.status() == runtime::v1alpha2::PullImageProgress::PULL_COMPLETED) {
+                    progress.layer_status[i] = PULL_COMPLETED;
+                } else if (layer.status() == runtime::v1alpha2::PullImageProgress::CACHED) {
+                    progress.layer_status[i] = CACHED;
+                }
             }
         }
     }

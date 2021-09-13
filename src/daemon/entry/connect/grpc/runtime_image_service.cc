@@ -35,7 +35,7 @@ int progress_to_grpc(struct isulad_pull_image_progress_format *progress,
         gprogress->set_image_ref(progress->image_ref);
     } else {
         gprogress->set_layers_num(progress->layers_number);
-        for(int i = 0; i < gprogress->layers_num(); i++) {
+        for(int i = 0; i < gprogress->layers_number(); i++) {
             runtime::v1alpha2::PullImageProgress::LayerInfo *layer = gprogress->add_layers();
             layer->set_digest(prgress->layer_digest[i]);
             layer->set_size(progress->layer_size[i]);

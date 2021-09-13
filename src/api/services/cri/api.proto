@@ -1129,7 +1129,7 @@ message PullImageProgress {
 
     // stream message for displaying progress bars while pulling images
 
-    int32 layers_num = 1;
+    int32 layers_number = 1;
 
     enum TaskStatus {
         WAITING = 0,
