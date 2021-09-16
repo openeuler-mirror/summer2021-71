@@ -28,6 +28,7 @@
 #include <isula_libutils/oci_image_spec.h>
 #include <pthread.h>
 #include <stdlib.h>
+#include <sys/time.h>
 
 #include "mediatype.h"
 #include "isula_libutils/log.h"
@@ -58,6 +59,7 @@
 #define MANIFEST_BIG_DATA_KEY "manifest"
 #define MAX_CONCURRENT_DOWNLOAD_NUM 5
 #define DEFAULT_WAIT_TIMEOUT 15
+#define DEFAULT_WAIT_TIMEOUT_MS 200
 
 typedef struct {
     pull_descriptor *desc;
@@ -1564,22 +1566,10 @@ int write_to_stream_func(pull_descriptor *desc, stream_func_wrapper *stream)
         data->layer_size[i] = desc->layers[i].size;
         data->dlnow[i] = desc->layers[i].dlnow;
         data->layer_digest[i] = desc->layers[i].digest;
-        if(desc->layers[i].status == WAITING) {
-            data->status[i] = WAITING;
-        } else if (desc->layers[i].status == DOWNLOADING)) {
-            data->status[i] = DOWNLOADING;
-        } else if (desc->layers[i].status == DOWNLOAD_COMPLETED)) {
-            data->status[i] = DOWNLOAD_COMPLETED;
-        } else if (desc->layers[i].status == EXTRACTING)) {
-            data->status[i] = EXTRACTING;
-        } else if (desc->layers[i].status == PULL_COMPLETED)) {
-            data->status[i] = PULL_COMPLETED;
-        } else if (desc->layers[i].status == CACHED)) {
-            data->status[i] = CACHED;
-        }
+	data->layer_status[i] = desc->layers[i].status;
     }
     data->image_ref = NULL;
-    stream->stream_write_fun_t(stream->writer, data);
+    stream->write_func(stream->writer, data);
     free_isulad_pull_format(data);
     return 0;
 }
@@ -1701,7 +1691,15 @@ static int fetch_all(pull_descriptor *desc, stream_func_wrapper *stream)
     // wait until all pulled or cancelled
     mutex_lock(&g_shared->mutex);
     while (!all_fetch_complete(desc, infos, &result)) {
-        ts.tv_sec = time(NULL) + DEFAULT_WAIT_TIMEOUT; // avoid wait forever
+        if(stream != NULL) { // write progress into stream, time interval should be shorter
+            struct timeval now;
+            gettimeofday(&now, NULL);
+            int nsec = now.tv_usec * 1000 + (DEFAULT_WAIT_TIMEOUT_MS % 1000) * 1000000;
+            ts.tv_nsec = nsec % 1000000000;
+            ts.tv_sec = now.tv_sec + nsec / 1000000000 + DEFAULT_WAIT_TIMEOUT_MS / 1000;
+        } else { // 
+            ts.tv_sec = time(NULL) + DEFAULT_WAIT_TIMEOUT; // avoid wait forever
+        }
         cond_ret = pthread_cond_timedwait(&g_shared->cond, &g_shared->mutex, &ts);
         if (cond_ret != 0 && cond_ret != ETIMEDOUT) {
             // here we can't just break and cleanup resources because threads are running.

@@ -21,6 +21,7 @@
 #include <stdbool.h>
 
 #include "utils_timestamp.h"
+#include "pull_format.h"
 
 // 8 is enough for challenge, usually only one challenge is provided.
 #define CHALLENGE_MAX 8
@@ -56,20 +57,12 @@ typedef struct {
     int result;
 } config_blob;
 
-typedef enum{
-    WAITING = 0,
-    DOWNLOADING = 1,
-    DOWNLOAD_COMPLETED = 2,
-    EXTRACTING = 3,
-    PULL_COMPLETED = 4,
-    CACHED = 5,
-}layer_task_status;
 
 typedef struct {
     bool empty_layer;
     char *media_type;
     //status for each layer
-    layer_task_status status;
+    enum PULL_FORMAT_TASK_STATUS status;
     // blob size
     size_t size;
     // size downloaded so far

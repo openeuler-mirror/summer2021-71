@@ -28,7 +28,6 @@
 #include "events_sender_api.h"
 #include "isula_libutils/log.h"
 #include "service_image_api.h"
-#include "stream_wrapper.h"
 #include "utils.h"
 
 

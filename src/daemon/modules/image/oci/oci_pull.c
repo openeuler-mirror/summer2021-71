@@ -177,10 +177,10 @@ int write_image_ref_to_stream(stream_func_wrapper *stream, char *image_ref)
     }
     struct isulad_pull_format *data;
     data = malloc(sizeof(struct isulad_pull_format)); // util_common_calloc_s
-    memset(data, 0, sizeof(data));
+    memset(data, 0, sizeof(struct isulad_pull_format));
 
     data->image_ref = image_ref;
-    stream->stream_write_fun_t(stream->writer, data);
+    stream->write_func(stream->writer, data);
     free(data);
     return 0;
 }

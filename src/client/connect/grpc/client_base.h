@@ -102,7 +102,6 @@ public:
         gRP reply;
         ClientContext context;
         Status status;
-
         // Set deadline for GRPC client
         if (deadline > 0) {
             auto tDeadline = std::chrono::system_clock::now() + std::chrono::seconds(deadline);
@@ -226,5 +225,6 @@ auto container_func(const REQUEST *request, RESPONSE *response, void *arg) noexc
 
     return client->run(request, response);
 }
+
 
 #endif // CLIENT_CONNECT_GRPC_CLIENT_BASE_H

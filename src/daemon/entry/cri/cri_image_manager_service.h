@@ -20,6 +20,7 @@
 
 #include "api.pb.h"
 #include "errors.h"
+#include "stream_wrapper.h"
 
 namespace CRI {
 class ImageManagerService {

@@ -29,15 +29,15 @@ RuntimeImageServiceImpl::RuntimeImageServiceImpl()
     rService = std::move(service);
 }
 
-int progress_to_grpc(struct isulad_pull_image_progress_format *progress, 
+int progress_to_grpc(struct isulad_pull_format *progress, 
                      runtime::v1alpha2::PullImageProgress *gprogress) {
     if(progress->image_ref != nullptr) {
         gprogress->set_image_ref(progress->image_ref);
     } else {
-        gprogress->set_layers_num(progress->layers_number);
+        gprogress->set_layers_number(progress->layers_number);
         for(int i = 0; i < gprogress->layers_number(); i++) {
             runtime::v1alpha2::PullImageProgress::LayerInfo *layer = gprogress->add_layers();
-            layer->set_digest(prgress->layer_digest[i]);
+            layer->set_digest(progress->layer_digest[i]);
             layer->set_size(progress->layer_size[i]);
             layer->set_dlnow(progress->dlnow[i]);
             if(progress->layer_status[i] == WAITING) {
@@ -66,6 +66,7 @@ bool grpc_progress_into_stream_write_function(void *writer, void *data) {
     if (progress_to_grpc(progress, &gprogress) != 0) {
         return false;
     }
+    fprintf(stderr, "HERE SEND A MESSAGE");
     return gwriter->Write(gprogress);
 }
 

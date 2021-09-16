@@ -1132,12 +1132,12 @@ message PullImageProgress {
     int32 layers_number = 1;
 
     enum TaskStatus {
-        WAITING = 0,
-        DOWNLOADING = 1,
-        DOWNLOAD_COMPLETED = 2,
-        EXTRACTING = 3,
-        PULL_COMPLETED = 4,
-        CACHED = 5,
+        WAITING = 0;
+        DOWNLOADING = 1;
+        DOWNLOAD_COMPLETED = 2;
+        EXTRACTING = 3;
+        PULL_COMPLETED = 4;
+        CACHED = 5;
     }
 
     message LayerInfo {
@@ -1149,7 +1149,7 @@ message PullImageProgress {
 
     repeated LayerInfo layers = 2;
 
-    string image_ref = 3;
+   string image_ref = 3;
 }
 
 
