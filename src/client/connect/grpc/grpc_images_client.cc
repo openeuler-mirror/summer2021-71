@@ -383,6 +383,7 @@ public:
         return 0;
     }
 
+
     void show_progress_bar(const isula_pull_progress &progress)
     {
         //int progress;
