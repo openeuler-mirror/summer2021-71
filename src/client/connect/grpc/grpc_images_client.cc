@@ -447,7 +447,7 @@ public:
             progress.layer_status = (enum ISULA_PULL_TASK_STATUS *)malloc(progress.layers_number*sizeof(enum ISULA_PULL_TASK_STATUS));
             for(int i = 0; i < gprogress->layers_number(); i++) {
                 const runtime::v1alpha2::PullImageProgress::LayerInfo& layer = gprogress->layers(i);
-                progress.layer_digest[i] = util_strdup_s(layer.digest().c_str());
+                progress.layer_digest[i] = util_short_digest(layer.digest().c_str());
                 progress.layer_size[i] = layer.size();
                 progress.dlnow[i] = layer.dlnow();
                 if(layer.status() == runtime::v1alpha2::PullImageProgress::WAITING) {

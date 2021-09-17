@@ -1688,9 +1688,11 @@ static int fetch_all(pull_descriptor *desc, stream_func_wrapper *stream)
         }
     }
 
+
     // wait until all pulled or cancelled
     mutex_lock(&g_shared->mutex);
     while (!all_fetch_complete(desc, infos, &result)) {
+        write_to_stream_func(desc ,stream);
         if(stream != NULL) { // write progress into stream, time interval should be shorter
             struct timeval now;
             gettimeofday(&now, NULL);
@@ -1709,11 +1711,9 @@ static int fetch_all(pull_descriptor *desc, stream_func_wrapper *stream)
                   cond_ret, strerror(errno));
             sleep(10);
             continue;
-        } else {
-            write_to_stream_func(desc ,stream);
         }
     }
-
+    write_to_stream_func(desc ,stream);
     if (ret == 0) {
         ret = result;
     }
