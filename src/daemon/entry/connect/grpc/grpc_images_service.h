@@ -21,6 +21,8 @@
 #include "images.grpc.pb.h"
 #include "callback.h"
 #include "error.h"
+#include "image_api.h"
+#include "stream_wrapper.h"
 
 using grpc::Server;
 using grpc::ServerBuilder;
@@ -57,6 +59,8 @@ public:
     Status Login(ServerContext *context, const LoginRequest *request, LoginResponse *reply) override;
 
     Status Logout(ServerContext *context, const LogoutRequest *request, LogoutResponse *reply) override;
+
+    Status PullImage(ServerContext *context, const PullImageRequest *request, ServerWriter<PullImageProgress> *writer) override;
 
 private:
     template <class T1, class T2>

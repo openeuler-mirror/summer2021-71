@@ -338,8 +338,8 @@ public:
 };
 
 class ImagesPull : public
-    ClientBase<runtime::v1alpha2::ImageService, runtime::v1alpha2::ImageService::Stub, isula_pull_request,
-    runtime::v1alpha2::PullImageRequest, isula_pull_response, runtime::v1alpha2::PullImageProgress> {
+    ClientBase<ImageService, ImageService::Stub, isula_pull_request,
+    PullImageRequest, isula_pull_response, PullImageProgress> {
 public:
     explicit ImagesPull(void *args)
         : ClientBase(args)
@@ -347,14 +347,14 @@ public:
     }
     ~ImagesPull() = default;
 
-    auto request_to_grpc(const isula_pull_request *request, runtime::v1alpha2::PullImageRequest *grequest) -> int override
+    auto request_to_grpc(const isula_pull_request *request, PullImageRequest *grequest) -> int override
     {
         if (request == nullptr) {
             return -1;
         }
 
         if (request->image_name != nullptr) {
-            runtime::v1alpha2::ImageSpec *image_spec = new (std::nothrow) runtime::v1alpha2::ImageSpec;
+            ImageSpec *image_spec = new (std::nothrow) ImageSpec;
             if (image_spec == nullptr) {
                 return -1;
             }
@@ -365,7 +365,7 @@ public:
         return 0;
     }
 
-    auto response_from_grpc(runtime::v1alpha2::PullImageProgress *gresponse, isula_pull_response *response) -> int override
+    auto response_from_grpc(PullImageProgress *gresponse, isula_pull_response *response) -> int override
     {
         if (!gresponse->image_ref().empty()) {
             response->image_ref = util_strdup_s(gresponse->image_ref().c_str());
@@ -373,7 +373,7 @@ public:
         return 0;
     }
 
-    auto check_parameter(const runtime::v1alpha2::PullImageRequest &req) -> int override
+    auto check_parameter(const PullImageRequest &req) -> int override
     {
         if (req.image().image().empty()) {
             ERROR("Missing image name in the request");
@@ -435,7 +435,7 @@ public:
     
     // translate grpc_progress to isula_progress
     void progress_from_grpc(struct isula_pull_progress &progress,
-                            runtime::v1alpha2::PullImageProgress *gprogress)
+                            PullImageProgress *gprogress)
     {
         if(!gprogress->image_ref().empty()) {
             progress.image_ref = util_strdup_s(gprogress->image_ref().c_str());
@@ -446,21 +446,21 @@ public:
             progress.dlnow = (size_t*)malloc(progress.layers_number*sizeof(size_t));
             progress.layer_status = (enum ISULA_PULL_TASK_STATUS *)malloc(progress.layers_number*sizeof(enum ISULA_PULL_TASK_STATUS));
             for(int i = 0; i < gprogress->layers_number(); i++) {
-                const runtime::v1alpha2::PullImageProgress::LayerInfo& layer = gprogress->layers(i);
+                const PullImageProgress::LayerInfo& layer = gprogress->layers(i);
                 progress.layer_digest[i] = util_short_digest(layer.digest().c_str());
                 progress.layer_size[i] = layer.size();
                 progress.dlnow[i] = layer.dlnow();
-                if(layer.status() == runtime::v1alpha2::PullImageProgress::WAITING) {
+                if(layer.status() == PullImageProgress::WAITING) {
                     progress.layer_status[i] = WAITING;
-                } else if (layer.status() == runtime::v1alpha2::PullImageProgress::DOWNLOADING) {
+                } else if (layer.status() == PullImageProgress::DOWNLOADING) {
                     progress.layer_status[i] = DOWNLOADING;
-                } else if (layer.status() == runtime::v1alpha2::PullImageProgress::DOWNLOAD_COMPLETED) {
+                } else if (layer.status() == PullImageProgress::DOWNLOAD_COMPLETED) {
                     progress.layer_status[i] = DOWNLOAD_COMPLETED;
-                } else if (layer.status() == runtime::v1alpha2::PullImageProgress::EXTRACTING) {
+                } else if (layer.status() == PullImageProgress::EXTRACTING) {
                     progress.layer_status[i] = EXTRACTING;
-                } else if (layer.status() == runtime::v1alpha2::PullImageProgress::PULL_COMPLETED) {
+                } else if (layer.status() == PullImageProgress::PULL_COMPLETED) {
                     progress.layer_status[i] = PULL_COMPLETED;
-                } else if (layer.status() == runtime::v1alpha2::PullImageProgress::CACHED) {
+                } else if (layer.status() == PullImageProgress::CACHED) {
                     progress.layer_status[i] = CACHED;
                 }
             }
@@ -493,11 +493,10 @@ public:
         progress.layers_number = 0;
     }
 
-    auto grpc_call(ClientContext *context, const runtime::v1alpha2::PullImageRequest &req,
-                   runtime::v1alpha2::PullImageProgress *gprogress) -> Status override
+    auto grpc_call(ClientContext *context, const PullImageRequest &req,
+                   PullImageProgress *gprogress) -> Status override
     {
-
-        std::unique_ptr<ClientReader<runtime::v1alpha2::PullImageProgress> > 
+        std::unique_ptr<ClientReader<PullImageProgress> > 
         reader(stub_->PullImage(context, req));
         struct isula_pull_progress progress;
         memset(&progress, 0, sizeof(struct isula_pull_progress));
