@@ -39,7 +39,7 @@ grpc::Status RuntimeImageServiceImpl::PullImage(grpc::ServerContext *context,
 
     EVENT("Event: {Object: CRI, Type: Pulling image %s}", request->image().image().c_str());
 
-    std::string imageRef = rService->PullImage(request->image(), request->auth(), error);
+    std::string imageRef = rService->PullImage(request->image(), request->auth(), error, NULL);
     if (!error.Empty() || imageRef.empty()) {
         ERROR("{Object: CRI, Type: Failed to pull image %s}", request->image().image().c_str());
         return grpc::Status(grpc::StatusCode::UNKNOWN, error.GetMessage());

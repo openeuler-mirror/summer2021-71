@@ -121,7 +121,7 @@ service ImageService {
     // nil.
     rpc ImageStatus(ImageStatusRequest) returns (ImageStatusResponse) {}
     // PullImage pulls an image with authentication config.
-    rpc PullImage(PullImageRequest) returns (stream PullImageResponse) {}
+    rpc PullImage(PullImageRequest) returns  (PullImageResponse) {}
     // RemoveImage removes the image.
     // This call is idempotent, and must not return an error if the image has
     // already been removed.

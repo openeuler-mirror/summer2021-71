@@ -23,6 +23,10 @@
 #include "error.h"
 #include "image_api.h"
 #include "stream_wrapper.h"
+#include "pull_format.h"
+#include "errors.h"
+#include "events_sender_api.h"
+#include "err_msg.h"
 
 using grpc::Server;
 using grpc::ServerBuilder;

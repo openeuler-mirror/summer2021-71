@@ -338,7 +338,7 @@ public:
 };
 
 class ImagesPull : public
-    ClientBase<ImageService, ImageService::Stub, isula_pull_request,
+    ClientBase<ImagesService, ImagesService::Stub, isula_pull_request,
     PullImageRequest, isula_pull_response, PullImageProgress> {
 public:
     explicit ImagesPull(void *args)

@@ -46,7 +46,13 @@ message Image {
 	google.protobuf.Timestamp updated_at = 5;
 }
 
-
+message ImageSpec {
+    string image = 1;
+    // Unstructured key-value map holding arbitrary metadata.
+    // ImageSpec Annotations can be used to help the runtime target specific
+    // images in multi-arch images.
+    map<string, string> annotations = 2;
+}
 // AuthConfig contains authorization information for connecting to a registry.
 message AuthConfig {
     string username = 1;
