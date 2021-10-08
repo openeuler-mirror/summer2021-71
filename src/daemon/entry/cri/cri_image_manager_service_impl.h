@@ -22,6 +22,7 @@
 // #include "cri_services.h"
 #include "image_api.h"
 #include "cri_image_manager_service.h"
+#include "stream_wrapper.h"
 
 namespace CRI {
 class ImageManagerServiceImpl : public ImageManagerService {

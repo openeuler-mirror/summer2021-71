@@ -17,6 +17,7 @@
 
 #include "image_api.h"
 #include "stream_wrapper.h"
+#include "pull_format.h"
 
 #ifdef __cplusplus
 extern "C" {
