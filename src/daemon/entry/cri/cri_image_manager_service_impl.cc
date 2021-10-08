@@ -255,7 +255,7 @@ cleanup:
 }
 
 auto ImageManagerServiceImpl::PullImage(const runtime::v1alpha2::ImageSpec &image,
-                                        const runtime::v1alpha2::AuthConfig &auth, Errors &error, stream_func_wrapper *stream) -> std::string
+                                        const runtime::v1alpha2::AuthConfig &auth, Errors &error) -> std::string
 {
     std::string out_str;
     im_pull_request *request { nullptr };
@@ -267,7 +267,7 @@ auto ImageManagerServiceImpl::PullImage(const runtime::v1alpha2::ImageSpec &imag
     }
     request->type = util_strdup_s(IMAGE_TYPE_OCI);
 
-    ret = im_pull_image(request, &response, stream);
+    ret = im_pull_image(request, &response, NULL);
     if (ret != 0) {
         if (response != nullptr && response->errmsg != nullptr) {
             error.SetError(response->errmsg);

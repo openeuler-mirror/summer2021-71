@@ -29,66 +29,17 @@ RuntimeImageServiceImpl::RuntimeImageServiceImpl()
     rService = std::move(service);
 }
 
-int progress_to_grpc(struct isulad_pull_format *progress, 
-                     runtime::v1alpha2::PullImageProgress *gprogress) {
-    if(progress->image_ref != nullptr) {
-        gprogress->set_image_ref(progress->image_ref);
-    } else {
-        gprogress->set_layers_number(progress->layers_number);
-        for(int i = 0; i < gprogress->layers_number(); i++) {
-            runtime::v1alpha2::PullImageProgress::LayerInfo *layer = gprogress->add_layers();
-            layer->set_digest(progress->layer_digest[i]);
-            layer->set_size(progress->layer_size[i]);
-            layer->set_dlnow(progress->dlnow[i]);
-            if(progress->layer_status[i] == WAITING) {
-                layer->set_status(runtime::v1alpha2::PullImageProgress::WAITING);
-            } else if(progress->layer_status[i] == DOWNLOADING) {
-                layer->set_status(runtime::v1alpha2::PullImageProgress::DOWNLOADING);
-            } else if(progress->layer_status[i] == DOWNLOAD_COMPLETED) {
-                layer->set_status(runtime::v1alpha2::PullImageProgress::DOWNLOAD_COMPLETED);
-            } else if(progress->layer_status[i] == EXTRACTING) {
-                layer->set_status(runtime::v1alpha2::PullImageProgress::EXTRACTING);
-            } else if(progress->layer_status[i] == PULL_COMPLETED) {
-                layer->set_status(runtime::v1alpha2::PullImageProgress::PULL_COMPLETED);
-            } else if(progress->layer_status[i] == CACHED) {
-                layer->set_status(runtime::v1alpha2::PullImageProgress::CACHED);
-            }
-        }
-    }
-    return 0;
-}
-
-
-bool grpc_progress_into_stream_write_function(void *writer, void *data) {
-    struct isulad_pull_format *progress = (struct isulad_pull_format *)data;
-    grpc::ServerWriter<runtime::v1alpha2::PullImageProgress> *gwriter = (grpc::ServerWriter<runtime::v1alpha2::PullImageProgress> *)writer;
-    runtime::v1alpha2::PullImageProgress gprogress;
-    if (progress_to_grpc(progress, &gprogress) != 0) {
-        return false;
-    }
-    return gwriter->Write(gprogress);
-}
-
-
 grpc::Status RuntimeImageServiceImpl::PullImage(grpc::ServerContext *context,
                                                 const runtime::v1alpha2::PullImageRequest *request,
-                                                grpc::ServerWriter<runtime::v1alpha2::PullImageProgress> *writer)
+                                                runtime::v1alpha2::PullImageResponse *reply)
 {
     Errors error;
-
     EVENT("Event: {Object: CRI, Type: Pulling image %s}", request->image().image().c_str());
-    
-    //new stream wrapper
-    stream_func_wrapper stream = { 0 }; 
-    stream.writer = (void *)writer;
-    stream.write_func = &grpc_progress_into_stream_write_function;
-
-    std::string imageRef = rService->PullImage(request->image(), request->auth(), error, &stream);
+    std::string imageRef = rService->PullImage(request->image(), request->auth(), error);
     if (!error.Empty() || imageRef.empty()) {
         ERROR("{Object: CRI, Type: Failed to pull image %s}", request->image().image().c_str());
         return grpc::Status(grpc::StatusCode::UNKNOWN, error.GetMessage());
     }
-    
     EVENT("Event: {Object: CRI, Type: Pulled image %s with ref %s}", request->image().image().c_str(),
           imageRef.c_str());
     return grpc::Status::OK;

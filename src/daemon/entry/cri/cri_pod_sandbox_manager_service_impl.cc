@@ -44,7 +44,7 @@ auto PodSandboxManagerServiceImpl::EnsureSandboxImageExists(const std::string &i
     imageStatus.reset();
 
     imageRef.set_image(image);
-    std::string outRef = imageService.PullImage(imageRef, auth, error, nullptr);
+    std::string outRef = imageService.PullImage(imageRef, auth, error);
     return !(!error.Empty() || outRef.empty());
 }
 

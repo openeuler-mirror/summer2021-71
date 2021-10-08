@@ -31,6 +31,12 @@ using grpc::ServerWriter;
 using grpc::Status;
 using grpc::StatusCode;
 using google::protobuf::Timestamp;
+#include "image_api.h"
+#include "stream_wrapper.h"
+#include "pull_format.h"
+#include "errors.h"
+#include "events_sender_api.h"
+#include "err_msg.h"
 
 using namespace images;
 
@@ -41,6 +47,8 @@ public:
     ImagesServiceImpl(const ImagesServiceImpl &) = delete;
     ImagesServiceImpl &operator=(const ImagesServiceImpl &) = delete;
     virtual ~ImagesServiceImpl() = default;
+
+    Status PullImage(ServerContext *context, const PullImageRequest *request, ServerWriter<PullImageProgress> *writer) override;
 
     Status List(ServerContext *context, const ListImagesRequest *request, ListImagesResponse *reply) override;
 
