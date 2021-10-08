@@ -391,7 +391,9 @@ public:
         size_t total_size, process_now;
         float total_size_MB, process_now_MB;
 
-        if(progress_times != 0)printf("\033[%dF", progress.layers_number);
+        if (progress_times != 0) {
+            printf("\033[%dF", progress.layers_number);
+        }
 
         for (int i = 0; i < progress.layers_number; i++) {
             printf("\r%s: ", progress.layer_digest[i]);
@@ -416,40 +418,44 @@ public:
                 printf(" %.2fMB/%.2fMB", process_now_MB, total_size_MB);
             } else if (progress.layer_status[i] == DOWNLOAD_COMPLETED) {
                 printf("Download completed");
-                for (int j = 0; j < 20; j++)
+                for (int j = 0; j < 20; j++) {
                     putchar(' ');
+                }
             } else if (progress.layer_status[i] == EXTRACTING) {
                 printf("Extracting");
-                for (int j = 0; j < 20; j++)
+                for (int j = 0; j < 20; j++) {
                     putchar(' ');
+                }
             } else if (progress.layer_status[i] == PULL_COMPLETED) {
                 printf("Pull completed");
-                for (int j = 0; j < 20; j++)
+                for (int j = 0; j < 20; j++) {
                     putchar(' ');
+                }
             }
             putchar('\n');
         }
         progress_times ++;
     }
-    
+
     // translate grpc_progress to isula_progress
     void progress_from_grpc(struct isula_pull_progress &progress,
                             PullImageProgress *gprogress)
     {
-        if(!gprogress->image_ref().empty()) {
+        if (!gprogress->image_ref().empty()) {
             progress.image_ref = util_strdup_s(gprogress->image_ref().c_str());
         } else {
             progress.layers_number = gprogress->layers_number();
-            progress.layer_digest = (char**)malloc(progress.layers_number*sizeof(char*));
-            progress.layer_size = (size_t*)malloc(progress.layers_number*sizeof(size_t));
-            progress.dlnow = (size_t*)malloc(progress.layers_number*sizeof(size_t));
-            progress.layer_status = (enum ISULA_PULL_TASK_STATUS *)malloc(progress.layers_number*sizeof(enum ISULA_PULL_TASK_STATUS));
-            for(int i = 0; i < gprogress->layers_number(); i++) {
-                const PullImageProgress::LayerInfo& layer = gprogress->layers(i);
+            progress.layer_digest = (char**)malloc(progress.layers_number * sizeof(char*));
+            progress.layer_size = (size_t*)malloc(progress.layers_number * sizeof(size_t));
+            progress.dlnow = (size_t*)malloc(progress.layers_number * sizeof(size_t));
+            progress.layer_status = (enum ISULA_PULL_TASK_STATUS *)malloc(progress.layers_number * sizeof(
+                                                                              enum ISULA_PULL_TASK_STATUS));
+            for (int i = 0; i < gprogress->layers_number(); i++) {
+                const PullImageProgress::LayerInfo &layer = gprogress->layers(i);
                 progress.layer_digest[i] = util_short_digest(layer.digest().c_str());
                 progress.layer_size[i] = layer.size();
                 progress.dlnow[i] = layer.dlnow();
-                if(layer.status() == PullImageProgress::WAITING) {
+                if (layer.status() == PullImageProgress::WAITING) {
                     progress.layer_status[i] = WAITING;
                 } else if (layer.status() == PullImageProgress::DOWNLOADING) {
                     progress.layer_status[i] = DOWNLOADING;
@@ -466,22 +472,23 @@ public:
         }
     }
 
-    void free_progress_info(struct isula_pull_progress &progress) {
-        if(progress.image_ref != NULL) {
+    void free_progress_info(struct isula_pull_progress &progress)
+    {
+        if (progress.image_ref != NULL) {
             free(progress.image_ref);
             progress.image_ref = NULL;
         }
-        if(progress.layer_size != NULL) {
+        if (progress.layer_size != NULL) {
             free(progress.layer_size);
             progress.layer_size = NULL;
         }
-        if(progress.dlnow != NULL) {
+        if (progress.dlnow != NULL) {
             free(progress.dlnow);
             progress.dlnow = NULL;
         }
-        if(progress.layer_digest != NULL) {
-            for(int i = 0; i < progress.layers_number; i++) {
-                if(progress.layer_digest[i] != NULL) {
+        if (progress.layer_digest != NULL) {
+            for (int i = 0; i < progress.layers_number; i++) {
+                if (progress.layer_digest[i] != NULL) {
                     free(progress.layer_digest[i]);
                     progress.layer_digest[i] = NULL;
                 }
@@ -495,11 +502,11 @@ public:
     auto grpc_call(ClientContext *context, const PullImageRequest &req,
                    PullImageProgress *gprogress) -> Status override
     {
-        std::unique_ptr<ClientReader<PullImageProgress> > 
-        reader(stub_->PullImage(context, req));
+        std::unique_ptr<ClientReader<PullImageProgress>>
+                                                      reader(stub_->PullImage(context, req));
         struct isula_pull_progress progress;
         memset(&progress, 0, sizeof(struct isula_pull_progress));
-        while(reader->Read(gprogress)) {
+        while (reader->Read(gprogress)) {
             // print progress bar
             progress_from_grpc(progress, gprogress);
             show_progress_bar(progress);

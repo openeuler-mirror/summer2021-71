@@ -12,13 +12,13 @@ enum PULL_FORMAT_TASK_STATUS {
     CACHED = 5,
 };
 
-struct isulad_pull_format{
-  int layers_number;
-  char **layer_digest;
-  size_t *layer_size;
-  size_t *dlnow;
-  enum PULL_FORMAT_TASK_STATUS *layer_status;
-  char *image_ref;
+struct isulad_pull_format {
+    int layers_number;
+    char **layer_digest;
+    size_t *layer_size;
+    size_t *dlnow;
+    enum PULL_FORMAT_TASK_STATUS *layer_status;
+    char *image_ref;
 };
 
 #endif

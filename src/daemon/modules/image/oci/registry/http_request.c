@@ -728,12 +728,11 @@ int http_request_file(pull_descriptor *desc, const char *url, const char **custo
     options->output = file;
     options->show_progress = 1;
 
-    if(index == -1){
-        // pass desc->cancel 
+    if (index == -1) {
+        // pass desc->cancel
         options->progressinfo = &desc->cancel;
         options->progress_info_op = progress;
-    }
-    else{
+    } else {
         // fetch dlnow
         options->progressinfo = &desc->layers[index].dlnow;
         options->progress_info_op = download_layer_progress;

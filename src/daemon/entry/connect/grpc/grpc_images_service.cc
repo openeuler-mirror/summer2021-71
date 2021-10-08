@@ -251,28 +251,29 @@ void ImagesServiceImpl::inspect_response_to_grpc(const image_inspect_response *r
     return;
 }
 
-static int progress_to_grpc(struct isulad_pull_format *progress, 
-                     PullImageProgress *gprogress) {
-    if(progress->image_ref != nullptr) {
+static int progress_to_grpc(struct isulad_pull_format *progress,
+                            PullImageProgress *gprogress)
+{
+    if (progress->image_ref != nullptr) {
         gprogress->set_image_ref(progress->image_ref);
     } else {
         gprogress->set_layers_number(progress->layers_number);
-        for(int i = 0; i < gprogress->layers_number(); i++) {
+        for (int i = 0; i < gprogress->layers_number(); i++) {
             PullImageProgress::LayerInfo *layer = gprogress->add_layers();
             layer->set_digest(progress->layer_digest[i]);
             layer->set_size(progress->layer_size[i]);
             layer->set_dlnow(progress->dlnow[i]);
-            if(progress->layer_status[i] == WAITING) {
+            if (progress->layer_status[i] == WAITING) {
                 layer->set_status(PullImageProgress::WAITING);
-            } else if(progress->layer_status[i] == DOWNLOADING) {
+            } else if (progress->layer_status[i] == DOWNLOADING) {
                 layer->set_status(PullImageProgress::DOWNLOADING);
-            } else if(progress->layer_status[i] == DOWNLOAD_COMPLETED) {
+            } else if (progress->layer_status[i] == DOWNLOAD_COMPLETED) {
                 layer->set_status(PullImageProgress::DOWNLOAD_COMPLETED);
-            } else if(progress->layer_status[i] == EXTRACTING) {
+            } else if (progress->layer_status[i] == EXTRACTING) {
                 layer->set_status(PullImageProgress::EXTRACTING);
-            } else if(progress->layer_status[i] == PULL_COMPLETED) {
+            } else if (progress->layer_status[i] == PULL_COMPLETED) {
                 layer->set_status(PullImageProgress::PULL_COMPLETED);
-            } else if(progress->layer_status[i] == CACHED) {
+            } else if (progress->layer_status[i] == CACHED) {
                 layer->set_status(PullImageProgress::CACHED);
             }
         }
@@ -280,7 +281,8 @@ static int progress_to_grpc(struct isulad_pull_format *progress,
     return 0;
 }
 
-static bool grpc_progress_into_stream_write_function(void *writer, void *data) {
+static bool grpc_progress_into_stream_write_function(void *writer, void *data)
+{
     struct isulad_pull_format *progress = (struct isulad_pull_format *)data;
     ServerWriter<PullImageProgress> *gwriter = (ServerWriter<PullImageProgress> *)writer;
     PullImageProgress gprogress;
@@ -291,7 +293,8 @@ static bool grpc_progress_into_stream_write_function(void *writer, void *data) {
     return gwriter->Write(gprogress);
 }
 
-static int pull_request_from_grpc(const ImageSpec *image, const AuthConfig *auth, im_pull_request **request, Errors &error) 
+static int pull_request_from_grpc(const ImageSpec *image, const AuthConfig *auth, im_pull_request **request,
+                                  Errors &error)
 {
     im_pull_request *tmpreq = (im_pull_request *)util_common_calloc_s(sizeof(im_pull_request));
     if (tmpreq == nullptr) {
@@ -333,7 +336,8 @@ static int pull_request_from_grpc(const ImageSpec *image, const AuthConfig *auth
     return 0;
 }
 
-static auto DoPullImage(const ImageSpec &image, const AuthConfig &auth, Errors &error, stream_func_wrapper *stream) -> std::string
+static auto DoPullImage(const ImageSpec &image, const AuthConfig &auth, Errors &error,
+                        stream_func_wrapper *stream) -> std::string
 {
     std::string out_str;
     im_pull_request *request { nullptr };
@@ -366,14 +370,15 @@ cleanup:
     return out_str;
 }
 
-Status ImagesServiceImpl::PullImage(ServerContext *context, const PullImageRequest *request, ServerWriter<PullImageProgress> *writer)
+Status ImagesServiceImpl::PullImage(ServerContext *context, const PullImageRequest *request,
+                                    ServerWriter<PullImageProgress> *writer)
 {
     Errors error;
 
     EVENT("Event: {Object: CRI, Type: Pulling image %s}", request->image().image().c_str());
-    
+
     //new stream wrapper
-    stream_func_wrapper stream = { 0 }; 
+    stream_func_wrapper stream = { 0 };
     stream.writer = (void *)writer;
     stream.write_func = &grpc_progress_into_stream_write_function;
 
@@ -382,7 +387,7 @@ Status ImagesServiceImpl::PullImage(ServerContext *context, const PullImageReque
         ERROR("{Object: CRI, Type: Failed to pull image %s}", request->image().image().c_str());
         return Status(StatusCode::UNKNOWN, error.GetMessage());
     }
-    
+
     EVENT("Event: {Object: CRI, Type: Pulled image %s with ref %s}", request->image().image().c_str(),
           imageRef.c_str());
     return Status::OK;

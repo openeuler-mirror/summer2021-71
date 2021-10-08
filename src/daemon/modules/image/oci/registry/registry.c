@@ -1286,8 +1286,9 @@ static int add_fetch_task(thread_fetch_info *info)
             goto out;
         }
         info->desc->pulling_number++;
+    } else {
+        info->desc->layers[info->index].status = CACHED;
     }
-    else info->desc->layers[info->index].status = CACHED;
 
 out:
     if (ret != 0 && cached_layers_added) {
@@ -1498,46 +1499,47 @@ static int add_fetch_config_task(pull_descriptor *desc)
 }
 
 
-void free_isulad_pull_format(struct isulad_pull_format *data) 
+void free_isulad_pull_format(struct isulad_pull_format *data)
 {
-    if(data != NULL) {
-        if(data->layer_size != NULL) {
+    if (data != NULL) {
+        if (data->layer_size != NULL) {
             free(data->layer_size);
         }
-        if(data->dlnow != NULL) {
+        if (data->dlnow != NULL) {
             free(data->dlnow);
         }
-        if(data->layer_digest != NULL) {
+        if (data->layer_digest != NULL) {
             free(data->layer_digest);
         }
-        if(data->layer_status != NULL) {
+        if (data->layer_status != NULL) {
             free(data->layer_status);
         }
         free(data);
     }
 }
 
-int prepare_isulad_pull_format(pull_descriptor *desc, struct isulad_pull_format *data) 
+int prepare_isulad_pull_format(pull_descriptor *desc, struct isulad_pull_format *data)
 {
-    if(data == NULL) {
+    if (data == NULL) {
         return -1;
     }
     memset(data, 0, sizeof(struct isulad_pull_format));
     data->layers_number = desc->layers_len;
     data->layer_size = (size_t*)malloc(data->layers_number * sizeof(size_t)); // util_common_calloc_s
-    if(data->layer_size == NULL) {
+    if (data->layer_size == NULL) {
         return -1;
     }
     data->dlnow = (size_t*)malloc(data->layers_number * sizeof(size_t)); // util_common_calloc_s
-    if(data->dlnow == NULL) {
+    if (data->dlnow == NULL) {
         return -1;
     }
     data->layer_digest = (char **)malloc(data->layers_number * sizeof(char *)); // util_common_calloc_s
-    if(data->layer_digest == NULL) {
+    if (data->layer_digest == NULL) {
         return -1;
     }
-    data->layer_status = (enum PULL_FORMAT_TASK_STATUS*)malloc(data->layers_number * sizeof(enum PULL_FORMAT_TASK_STATUS)); // util_common_calloc_s
-    if(data->layer_status == NULL) {
+    data->layer_status = (enum PULL_FORMAT_TASK_STATUS*)malloc(data->layers_number * sizeof(
+                                                                   enum PULL_FORMAT_TASK_STATUS)); // util_common_calloc_s
+    if (data->layer_status == NULL) {
         return -1;
     }
     return 0;
@@ -1546,27 +1548,27 @@ int prepare_isulad_pull_format(pull_descriptor *desc, struct isulad_pull_format 
 
 int write_to_stream_func(pull_descriptor *desc, stream_func_wrapper *stream)
 {
-    if(stream == NULL || stream->write_func == NULL || stream->writer == NULL) {
+    if (stream == NULL || stream->write_func == NULL || stream->writer == NULL) {
         return -1;
     }
 
     struct isulad_pull_format *data;
     data = (struct isulad_pull_format*)malloc(sizeof(struct isulad_pull_format)); // util_common_calloc_s
-    if(data == NULL) {
+    if (data == NULL) {
         ERROR("Out of memory");
         return -1;
     }
-    if(prepare_isulad_pull_format(desc, data) != 0) {
+    if (prepare_isulad_pull_format(desc, data) != 0) {
         ERROR("isulad_pull_format preparation failed");
         free_isulad_pull_format(data);
         return -1;
     }
 
-    for(int i = 0; i < desc->layers_len; i++) {
+    for (int i = 0; i < desc->layers_len; i++) {
         data->layer_size[i] = desc->layers[i].size;
         data->dlnow[i] = desc->layers[i].dlnow;
         data->layer_digest[i] = desc->layers[i].digest;
-        if(desc->layers[i].status == WAITING) {
+        if (desc->layers[i].status == WAITING) {
             data->layer_status[i] = WAITING;
         } else if (desc->layers[i].status == DOWNLOADING) {
             data->layer_status[i] = DOWNLOADING;
@@ -1625,7 +1627,7 @@ static int fetch_all(pull_descriptor *desc, stream_func_wrapper *stream)
     for (i = 0; i < desc->layers_len; i++) {
         infos[i].desc = desc;
         infos[i].index = i;
-        desc->layers[i].status= WAITING;
+        desc->layers[i].status = WAITING;
         desc->layers[i].dlnow = 0;
         desc->layers[i].extracted_now = 0;
         // Skip empty layer
@@ -1681,7 +1683,7 @@ static int fetch_all(pull_descriptor *desc, stream_func_wrapper *stream)
         infos[i].use = true;
         infos[i].file = util_strdup_s(file);
         infos[i].blob_digest = util_strdup_s(desc->layers[i].digest);
- 
+
         ret = add_fetch_task(&infos[i]);
         if (ret != 0) {
             infos[i].use = false;
@@ -1703,14 +1705,14 @@ static int fetch_all(pull_descriptor *desc, stream_func_wrapper *stream)
     // wait until all pulled or cancelled
     mutex_lock(&g_shared->mutex);
     while (!all_fetch_complete(desc, infos, &result)) {
-        write_to_stream_func(desc ,stream);
-        if(stream != NULL) { // write progress into stream, time interval should be shorter
+        write_to_stream_func(desc, stream);
+        if (stream != NULL) { // write progress into stream, time interval should be shorter
             struct timeval now;
             gettimeofday(&now, NULL);
             int nsec = now.tv_usec * 1000 + (DEFAULT_WAIT_TIMEOUT_MS % 1000) * 1000000;
             ts.tv_nsec = nsec % 1000000000;
             ts.tv_sec = now.tv_sec + nsec / 1000000000 + DEFAULT_WAIT_TIMEOUT_MS / 1000;
-        } else { // 
+        } else { //
             ts.tv_sec = time(NULL) + DEFAULT_WAIT_TIMEOUT; // avoid wait forever
         }
         cond_ret = pthread_cond_timedwait(&g_shared->cond, &g_shared->mutex, &ts);
@@ -1724,7 +1726,7 @@ static int fetch_all(pull_descriptor *desc, stream_func_wrapper *stream)
             continue;
         }
     }
-    write_to_stream_func(desc ,stream);
+    write_to_stream_func(desc, stream);
 
     if (ret == 0) {
         ret = result;

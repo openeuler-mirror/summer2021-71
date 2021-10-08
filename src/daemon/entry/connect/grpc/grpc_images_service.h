@@ -48,7 +48,8 @@ public:
     ImagesServiceImpl &operator=(const ImagesServiceImpl &) = delete;
     virtual ~ImagesServiceImpl() = default;
 
-    Status PullImage(ServerContext *context, const PullImageRequest *request, ServerWriter<PullImageProgress> *writer) override;
+    Status PullImage(ServerContext *context, const PullImageRequest *request,
+                     ServerWriter<PullImageProgress> *writer) override;
 
     Status List(ServerContext *context, const ListImagesRequest *request, ListImagesResponse *reply) override;
 

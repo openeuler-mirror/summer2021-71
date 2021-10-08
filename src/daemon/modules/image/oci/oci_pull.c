@@ -170,9 +170,9 @@ out:
     return ret;
 }
 
-int write_image_ref_to_stream(stream_func_wrapper *stream, char *image_ref) 
+int write_image_ref_to_stream(stream_func_wrapper *stream, char *image_ref)
 {
-    if(stream == NULL || stream->write_func == NULL || stream->writer == NULL) {
+    if (stream == NULL || stream->write_func == NULL || stream->writer == NULL) {
         return -1;
     }
     struct isulad_pull_format *data;

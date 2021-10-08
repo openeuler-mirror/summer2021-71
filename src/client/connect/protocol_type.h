@@ -494,13 +494,13 @@ enum ISULA_PULL_TASK_STATUS {
     CACHED = 5,
 };
 
-struct isula_pull_progress{
-  int layers_number;
-  char **layer_digest;
-  size_t *layer_size;
-  size_t *dlnow;
-  enum ISULA_PULL_TASK_STATUS *layer_status;
-  char *image_ref;
+struct isula_pull_progress {
+    int layers_number;
+    char **layer_digest;
+    size_t *layer_size;
+    size_t *dlnow;
+    enum ISULA_PULL_TASK_STATUS *layer_status;
+    char *image_ref;
 };
 
 struct isula_pull_response {
